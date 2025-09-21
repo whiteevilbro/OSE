@@ -4,6 +4,8 @@
 # Build tools
 NASM = nasm -f bin 
 
+N = 480
+
 
 # =============================================================================
 # Tasks
@@ -11,10 +13,10 @@ NASM = nasm -f bin
 all: clean build test
 
 .tmp/boot.bin: src/boot.asm
-	$(NASM) src/boot.asm -o .tmp/boot.bin
+	$(NASM) src/boot.asm -o .tmp/boot.bin -DN=$(N)
 
 boot.img: .tmp/boot.bin
-	dd if=/dev/zero of=boot.img bs=1024 count=1440
+	dd if=/dev/zero of=boot.img bs=1024 count=$(N)
 	dd if=.tmp/boot.bin of=boot.img conv=notrunc
 
 build: boot.img

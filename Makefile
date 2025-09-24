@@ -10,11 +10,11 @@ NASM = nasm -f bin
 
 all: clean build test
 
-.tmp/boot.bin: src/boot.asm
-	$(NASM) src/boot.asm -o .tmp/boot.bin
+.tmp/boot.bin: src/helloworld.asm
+	$(NASM) src/helloworld.asm -o .tmp/boot.bin -DN=$(N)
 
 boot.img: .tmp/boot.bin
-	dd if=/dev/zero of=boot.img bs=1024 count=1440
+	dd if=./payload of=boot.img bs=1024 count=1
 	dd if=.tmp/boot.bin of=boot.img conv=notrunc
 
 build: boot.img

@@ -31,4 +31,8 @@ debug: build
 	qemu-system-i386 -cpu pentium2 -m 1g -fda boot.img -monitor stdio -device VGA -s -S &
 	gdb
 
+dis: build
+	$(NASM) src/helloworld.asm -o ./boot.bin
+	ndisasm -b 16 -o 0x7c00 -k0,64 -p intel ./boot.bin
+
 .PHONY: all build clean test debug

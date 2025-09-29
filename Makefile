@@ -2,9 +2,10 @@
 # Variables
 
 # Build tools
-NASM = nasm -f bin 
+NASM = nasm -f bin -g
 
-N = 480
+# kB to load
+N = 481
 
 
 # =============================================================================
@@ -16,7 +17,7 @@ all: clean build test
 	$(NASM) src/boot.asm -o .tmp/boot.bin -DN=$(N)
 
 boot.img: .tmp/boot.bin
-	dd if=/dev/zero of=boot.img bs=1024 count=$(N)
+	dd if=/dev/random of=boot.img bs=1024 count=$(N)
 	dd if=.tmp/boot.bin of=boot.img conv=notrunc
 
 build: boot.img

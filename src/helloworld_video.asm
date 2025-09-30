@@ -18,10 +18,11 @@ dw 0xB800 ; es -> buffer base
 dw 0x0002 ; flags -> all flags cleared. 1 in reserved bit
 
 st: ; 0x7c00 + 0x0017; 0x17 == 20 + 3
-push cs   ; byte
 ; load ss:sp with 0x7C00 + size(call rel16)
+pop ax    ; byte
+push cs   ; byte
 pop ss    ; byte
-pop sp    ; byte 
+xchg sp, ax ; byte 
 ; right now ss:sp is set to 0x7C03, funny, innit?
 popa      ; byte
 pop es    ; byte
@@ -29,7 +30,7 @@ popf      ; byte ; can be replaced with cli, but this is more stylish
 int 0x13  ; 2 bytes
 hlt       ; byte
 
-; Total: 3 + (1 + 1 + 1) + (1 + 1 + 1) + (2 + 1) = 12
+; Total: 3 + (1 + 1 + 1 + 1) + (1 + 1 + 1) + (2 + 1) = 13
 
 times 510-($-$$) db 0
 dw 0xAA55

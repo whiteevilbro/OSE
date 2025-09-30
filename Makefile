@@ -42,7 +42,7 @@ d: dis
 dis: disasm
 disasm: build
 	$(NASM) src/helloworld_$(VERSION).asm -o ./boot.bin
-	$(eval HLT := 0x$(shell (ndisasm -b 16 -o 0x7c00 -a -p intel ./boot.bin) | (grep -m 1 -P -o '[0-9A-F]{8}(?=\s+F4\s+hlt)' /dev/stdin)))
+	$(eval HLT := 0x$(shell (ndisasm -b 16 -o 0x7c00 -a -p intel ./boot.img) | (grep -m 1 -P -o '[0-9A-F]{8}(?=\s+F4\s+hlt)' /dev/stdin)))
 	$(eval BYTES := $$$$(( $(HLT) - 0x7C00 + 1)))
 	$(eval OFFSET := $$$$((0x7C00 + $$(BYTES))))
 	$(eval SKIP := $$$$((510 - $$(BYTES))))

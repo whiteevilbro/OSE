@@ -1,3 +1,5 @@
 .tmp
 bar
 *.img
+*.bin
+.vscode

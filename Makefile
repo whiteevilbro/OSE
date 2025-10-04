@@ -53,14 +53,14 @@ $(BUILD_DIR)/boot.o: $(ASM_SOURCES)
 	@echo -e "\t\e[1mAssembling\e[0m"
 	$(NASM) $(ASM_SOURCES) -o $(BUILD_DIR)/boot.o
 
-link: $(BUILD_DIR)/kernel.o $(BUILD_DIR)/boot.o $(BUILD_DIR)/os.elf
+link: $(BUILD_DIR)/os.elf
 $(BUILD_DIR)/os.elf: $(BUILD_DIR)/boot.o $(BUILD_DIR)/kernel.o $(LINKER_SCRIPT)
 	@echo -e "\t\e[1mLinking\e[0m"
 	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>/dev/null
 	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(BUILD_DIR)/boot.o $(BUILD_DIR)/kernel.o -o $(BUILD_DIR)/os.elf
 
 bin: $(BUILD_DIR)/os.bin
-$(BUILD_DIR)/os.bin: compile assemble link
+$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf
 	@echo -e "\t\e[1mBuilding binary from ELF\e[0m"
 	objcopy -I elf32-i386 -O binary $(BUILD_DIR)/os.elf $(BUILD_DIR)/os.bin
 

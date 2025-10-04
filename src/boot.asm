@@ -3,6 +3,7 @@
 ; === IMPORTS & EXPORTS ===
 
 extern kernel_entry
+extern __kernel_size_sectors
 global halt
 
 ; === BOOT DEVICE READ CONFIG ===
@@ -10,21 +11,6 @@ global halt
 CYLINDERS_LIMIT equ 79
 HEADS_LIMIT equ 1
 SECTORS_LIMIT equ 36
-
-%ifdef KERNEL_SIZE
-  SECTORS_TO_READ equ ((KERNEL_SIZE * 2) - 1)
-%else
-  SECTORS_TO_READ equ 0
-%endif
-
-TRACKS_TO_READ equ (SECTORS_TO_READ / SECTORS_LIMIT) + ((SECTORS_TO_READ % SECTORS_LIMIT) != 0)
-CYLINDERS_TO_READ equ (TRACKS_TO_READ / HEADS_LIMIT) + ((TRACKS_TO_READ / HEADS_LIMIT) != 0)
-%if (CYLINDERS_TO_READ > CYLINDERS_LIMIT) 
-  %error "Kernel doesn't fit on floppy"
-%endif
-%if (SECTORS_TO_READ > 961)
-  %error "Kernel doesn't fit between VBR and frame buffer" 
-%endif
 
 ; === CODE ===
 
@@ -44,7 +30,15 @@ mov al, 1
 mov cl, 2
 xor dh, dh  
 
-mov di, SECTORS_TO_READ + 1
+; mov di, SECTORS_TO_READ + 1
+  ; mov si, __size
+  ; mov di, si
+  ; shr di, 9
+  ; test si, 0x1ff
+  ; jz .z
+  ; inc di
+  ; .z:
+  mov di, __kernel_size_sectors
 
 ; read (di - 1) consecutive sectors
 
@@ -89,19 +83,33 @@ mov di, SECTORS_TO_READ + 1
 
 .end_read:
 
+; turn blinking bit off
 mov ax, 0x1003
 ; xor bl, bl
 int 0x10
 
+; get current video mode
+; ah = number of character columns
+; bh = active page
 mov ah, 0x0F
 int 0x10
+
 movzx di, ah
+
+; get cursor position
+; dh = row
+; dl = column
 mov ah, 0x03
 int 0x10
+
+; hide cursor
 mov ah, 0x01
 mov ch, 0x20
 int 0x10
+
 movzx si, dh
+
+; push on stack according to System V i386 ABI
 sub sp, 4
 push edx
 push esi
@@ -140,20 +148,16 @@ call print
 jmp $
 
 
-; ds:bp - null terminated string fully contained in es effective address space
+; es:di - null terminated string fully contained in es effective address space
 ; ax - return value
 ; di, ax registers are not saved. Others are.
 strlen:
-  mov di, bp
-  .strlen_loop:
-    mov al, ds:[di]
-    test al, al
-    jz .strlen_loop_end
-    inc di
-    jmp .strlen_loop
-  .strlen_loop_end:
+  xor al, al
+  mov cx, 0xffff
+  repne scasb
   sub di, bp
   mov ax, di
+  dec ax
   ret
 
 
@@ -161,6 +165,12 @@ strlen:
 ; ax, bx, cx, dx, si registers are not saved. Others are.
 print:
   push es
+  
+  ; set es
+  mov si, ds
+  mov es, si
+  ; set di
+  mov di, bp
 
   call strlen
   ; save result for later
@@ -176,9 +186,6 @@ print:
 
   ; length of a string
   mov cx, si
-  ; set es
-  mov si, ds
-  mov es, si
   ; black background, white text
   mov bl, 0x07
   ; print string, move cursor to end of it

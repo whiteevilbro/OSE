@@ -1,5 +1,4 @@
-.tmp
-bar
 *.img
 *.bin
 .vscode
+build

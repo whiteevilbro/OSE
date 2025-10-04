@@ -1,5 +1,5 @@
-#include "stddef.h"
-#include "stdint.h"
+#include <stddef.h>
+#include <stdint.h>
 
 extern void halt();
 
@@ -38,6 +38,7 @@ typedef union {
 #pragma pack(pop)
 
 volatile VGA_charu* const text_frame_buffer = (VGA_charu*) 0xB8000;
+size_t s, e, ss;
 
 void kernel_entry(uint8_t columns, uint8_t row, uint8_t column) {
   char string[] = " Not so light-weight \"Hello, world!\" ";

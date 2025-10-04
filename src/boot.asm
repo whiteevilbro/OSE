@@ -1,5 +1,3 @@
-[BITS 16]
-
 ; === IMPORTS & EXPORTS ===
 
 extern kernel_entry
@@ -13,6 +11,8 @@ HEADS_LIMIT equ 1
 SECTORS_LIMIT equ 36
 
 ; === CODE ===
+
+[BITS 16]
 
 ; stack setup
 main:
@@ -30,15 +30,7 @@ mov al, 1
 mov cl, 2
 xor dh, dh  
 
-; mov di, SECTORS_TO_READ + 1
-  ; mov si, __size
-  ; mov di, si
-  ; shr di, 9
-  ; test si, 0x1ff
-  ; jz .z
-  ; inc di
-  ; .z:
-  mov di, __kernel_size_sectors
+mov di, __kernel_size_sectors
 
 ; read (di - 1) consecutive sectors
 
@@ -83,9 +75,10 @@ xor dh, dh
 
 .end_read:
 
+video_settings:
 ; turn blinking bit off
 mov ax, 0x1003
-; xor bl, bl
+; bl == 0
 int 0x10
 
 ; get current video mode
@@ -115,15 +108,18 @@ push edx
 push esi
 push edi
 
+protected_mode_switch:
 lgdt [gdt_pseudodescriptor]
 cli
 cld
 mov eax, cr0
 or eax, 1
 mov cr0, eax
-jmp CODE:$+5
+jmp CODE:protected_mode_trampoline
+
 
 [BITS 32]
+protected_mode_trampoline:
 mov eax, DATA
 mov ds, eax
 mov ss, eax
@@ -139,6 +135,7 @@ jmp kernel_entry
 ; never ending loop
 halt:
   jmp $
+
 
 [BITS 16]
 

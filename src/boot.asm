@@ -11,6 +11,7 @@ HEADS_LIMIT equ 1
 SECTORS_LIMIT equ 36
 
 ; === CODE ===
+; #region boot
 
 [BITS 16]
 
@@ -131,6 +132,7 @@ mov gs, eax
 sub sp, 4
 
 jmp kernel_entry
+; #endregion
 
 ; never ending loop
 halt:

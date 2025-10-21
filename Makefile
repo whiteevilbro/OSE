@@ -3,12 +3,23 @@
 
 SHELL = /bin/bash
 
+define uniq =
+  $(eval seen :=)
+  $(foreach _,$1,$(if $(filter $_,${seen}),,$(eval seen += $_)))
+  ${seen}
+endef
+
+# Location
+BUILD_DIR = build
+SOURCE_DIR = src
+
 # Build tools and options
-NASM = nasm -felf32 -g
+NASM = nasm
+NASM_FLAGS = -felf32 -g
 
 GCC = gcc
 MAIN_FLAGS = -std=c99 -O0 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -g3 -DDEBUG
-WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough
+WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough -Werror
 GCC_FLAGS = $(MAIN_FLAGS) $(WARNINGS_FLAGS)
 
 LD = ld
@@ -16,13 +27,14 @@ LINKER_SCRIPT = link.ld
 LD_FLAGS = -m i386pe --image-base=0
 
 # Sources and headers
-ASM_SOURCES = $(wildcard ./*.asm) $(wildcard **/*.asm)
-C_SOURCES = $(wildcard ./*.c) $(wildcard **/*.c)
-C_OBJECTS = $(patsubst src/%.c, $(BUILD_DIR)/%.o, $(C_SOURCES))
-HEADERS = $(wildcard ./*.h) $(wildcard **/*.h)
-GCC_FLAGS += $(addprefix -I, $(dir $(HEADERS)))
+ASM_SOURCES = $(shell find -L ./$(SOURCE_DIR) -iname "*.asm")
+C_SOURCES = $(shell find -L ./$(SOURCE_DIR) -iname "*.c")
+C_HEADERS = $(shell find -L ./$(SOURCE_DIR) -iname "*.h")
 
-BUILD_DIR = build
+ASM_OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(patsubst ./$(SOURCE_DIR)/%.asm, %.o, $(ASM_SOURCES))))
+C_OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(patsubst ./$(SOURCE_DIR)/%.c, %.o, $(C_SOURCES))))
+
+GCC_FLAGS += $(addprefix -I, $(call uniq,$(dir $(C_HEADERS))))
 
 # QEMU
 QEMU = qemu-system-i386
@@ -41,29 +53,29 @@ kill:
 
 build: boot.img
 boot.img: $(BUILD_DIR)/os.bin check
-	@dd if=/dev/zero of=$(BUILD_DIR)/os.img bs=1024 count=$$(((ACTUAL_KERNEL_SIZE / 1024) + (ACTUAL_KERNEL_SIZE % 1024) != 0))
+# 	@dd if=/dev/zero of=$(BUILD_DIR)/payload.img bs=1024 count=$$(((ACTUAL_KERNEL_SIZE / 1024) + (ACTUAL_KERNEL_SIZE % 1024) != 0))
 	@dd if=$(BUILD_DIR)/os.bin of=boot.img conv=notrunc
 
 echo:
-	echo $(C_OBJECTS)
+	@echo ECHO: $(GCC_FLAGS)
 
-compile: $(C_OBJECTS)
-$(C_OBJECTS): $(BUILD_DIR)/%.o: src/%.c
-	@echo -e "\t\e[1mCompiling\e[0m" $*
-	$(GCC) $(GCC_FLAGS) -c src/$*.c -o $@
+compile: clean-compile $(C_OBJECTS)
+$(C_OBJECTS): $(C_SOURCES) $(C_HEADERS)
+	@echo -e "\t\e[1mCompiling\e[0m" $(notdir $*)
+	$(GCC) $(GCC_FLAGS) -c $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).c") -o $@
 
-assemble: $(BUILD_DIR)/boot.o
-$(BUILD_DIR)/boot.o: $(ASM_SOURCES)
-	@echo -e "\t\e[1mAssembling\e[0m"
-	$(NASM) $(ASM_SOURCES) -o $(BUILD_DIR)/boot.o
+assemble: clean-assemble $(ASM_OBJECTS)
+$(ASM_OBJECTS): $(ASM_SOURCES)
+	@echo -e "\t\e[1mAssembling\e[0m" $(notdir $*)
+	$(NASM) $(NASM_FLAGS) $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).asm") -o $@
 
-link: $(BUILD_DIR)/os.elf
-$(BUILD_DIR)/os.elf: $(BUILD_DIR)/boot.o $(C_OBJECTS) $(LINKER_SCRIPT)
+link: clean-link $(BUILD_DIR)/os.elf
+$(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT)
 	@echo -e "\t\e[1mLinking\e[0m"
 	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>/dev/null
 	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(BUILD_DIR)/boot.o $(C_OBJECTS) -o $(BUILD_DIR)/os.elf
 
-bin: $(BUILD_DIR)/os.bin
+bin: clean-bin $(BUILD_DIR)/os.bin
 $(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf
 	@echo -e "\t\e[1mBuilding binary from ELF\e[0m"
 	objcopy -I elf32-i386 -O binary $(BUILD_DIR)/os.elf $(BUILD_DIR)/os.bin
@@ -78,10 +90,24 @@ check: $(BUILD_DIR)/os.bin
 		exit 127;\
 	fi
 
-clean:
-	rm -f *.img
+clean: clean-compile clean-assemble clean-link clean-bin clean-image
 	rm -rf $(BUILD_DIR)
 	mkdir $(BUILD_DIR)
+
+clean-compile:
+	rm -f $(C_OBJECTS)
+
+clean-assemble:
+	rm -f $(ASM_OBJECTS)
+
+clean-link:
+	rm -f $(BUILD_DIR)/*.elf
+
+clean-bin:
+	rm -f $(BUILD_DIR)/*.bin
+
+clean-image:
+	rm -f *.img
 
 test: boot.img
 	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img
@@ -90,4 +116,4 @@ debug: kill clean boot.img
 	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img -s -S &
 	gdb
 
-.PHONY: all build clean test debug compile assemble link check kill
+.PHONY: all build clean test debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image

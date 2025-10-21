@@ -3,7 +3,7 @@
 #include "assert.h"
 #include "interrupts.h"
 
-extern void __end;
+extern size_t __end;
 
 void memmove(void* dest, const void* src, size_t count) {
   ptrdiff_t distance = (uint8_t*) dest - (const uint8_t*) src;
@@ -41,7 +41,7 @@ static void* const ARENA_END[ARENA_COUNT] = {(void*) 0x80000, (void*) 0x400000};
 static void* current[2] = {ARENA_START[0], ARENA_START[1]};
 
 void init_TITLE_CARD_allocator() {
-  current[0] = &__end;
+  current[0] = (void*) &__end;
 }
 
 void* malloc_TITLE_CARD(size_t size, size_t alignment) {
@@ -61,6 +61,7 @@ void* malloc_TITLE_CARD(size_t size, size_t alignment) {
     }
   }
   kernel_panic("not enough memory in TITLE_CARD allocator");
+  __builtin_unreachable();
 }
 
 void* calloc_TITLE_CARD(size_t size, size_t alignment) {

@@ -1,39 +1,37 @@
-[BITS 16]
-[ORG 0x7C00]
+; === IMPORTS & EXPORTS ===
+
+extern kernel_entry
+extern __kernel_size_sectors
+global halt
+
+; === BOOT DEVICE READ CONFIG ===
 
 CYLINDERS_LIMIT equ 79
 HEADS_LIMIT equ 1
-SECTORS_LIMIT equ 18
+SECTORS_LIMIT equ 36
 
-%ifndef N
-  ; N - kB to read, normally passed at compilation
-  N equ 0
-%endif
-BYTES_TO_READ equ N * 1024
-SECTORS_TO_READ equ ((BYTES_TO_READ / 512) + ((BYTES_TO_READ % 512) != 0))
+; === CODE ===
+; #region boot
 
-TRACKS_TO_READ equ (SECTORS_TO_READ / SECTORS_LIMIT) + ((SECTORS_TO_READ % SECTORS_LIMIT) != 0)
-CYLINDERS_TO_READ equ (TRACKS_TO_READ / HEADS_LIMIT) + ((TRACKS_TO_READ / HEADS_LIMIT) != 0)
-%if (CYLINDERS_TO_READ > CYLINDERS_LIMIT) || (N > 481)
-  %error "Too big of a payload."
-%endif
+[BITS 16]
 
-; stack
+; stack setup
+main:
 xor cx, cx
 mov ds, cx
 mov ss, cx
 mov sp, 0x7C00
 
+xor bx, bx
 mov ax, 0x7E0
 mov es, ax
 
 mov al, 1
-; cx == 0
+; ch == 0
 mov cl, 2
 xor dh, dh  
 
-mov di, SECTORS_TO_READ + 1
-
+mov di, __kernel_size_sectors
 
 ; read (di - 1) consecutive sectors
 
@@ -51,7 +49,7 @@ mov di, SECTORS_TO_READ + 1
 
   mov ah, 2
   int 0x13
-  jc .read_error
+  jc read_error
 
   mov si, es
   add si, 0x20
@@ -73,34 +71,92 @@ mov di, SECTORS_TO_READ + 1
 
 .end_read_success:
 
-mov bp, succes_str
-call print
+  mov bp, succes_str
+  call print
 
 .end_read:
 
-.end:
-jmp $
+video_settings:
+; turn blinking bit off
+mov ax, 0x1003
+; bl == 0
+int 0x10
 
-.read_error:
+; ; get current video mode
+; ; ah = number of character columns
+; ; bh = active page
+; mov ah, 0x0F
+; int 0x10
+
+; movzx di, ah
+
+; ; get cursor position
+; ; dh = row
+; ; dl = column
+; mov ah, 0x03
+; int 0x10
+
+; ; hide cursor
+; mov ah, 0x01
+; mov ch, 0x20
+; int 0x10
+
+; movzx si, dh
+
+; ; push on stack according to System V i386 ABI
+; sub sp, 4
+; push edx
+; push esi
+; push edi
+
+protected_mode_switch:
+lgdt [gdt_pseudodescriptor]
+cli
+cld
+mov eax, cr0
+or eax, 1
+mov cr0, eax
+jmp CODE:protected_mode_trampoline
+
+
+[BITS 32]
+protected_mode_trampoline:
+mov eax, DATA
+mov ds, eax
+mov ss, eax
+mov es, eax
+mov fs, eax
+mov gs, eax
+
+; and sp, ~0xf
+sub sp, 4
+
+jmp kernel_entry
+; #endregion
+
+; never ending loop
+halt:
+  jmp $
+
+
+[BITS 16]
+
+read_error:
 mov bp, read_error_str
 call print
-jmp .end_read
+jmp $
 
 
-; ds:bp - null terminated string fully contained in es effective address space
+; es:di - null terminated string fully contained in es effective address space
 ; ax - return value
 ; di, ax registers are not saved. Others are.
 strlen:
-  mov di, bp
-  .strlen_loop:
-    mov al, ds:[di]
-    test al, al
-    jz .strlen_loop_end
-    inc di
-    jmp .strlen_loop
-  .strlen_loop_end:
+  xor al, al
+  mov cx, 0xffff
+  repne scasb
   sub di, bp
   mov ax, di
+  dec ax
   ret
 
 
@@ -108,6 +164,12 @@ strlen:
 ; ax, bx, cx, dx, si registers are not saved. Others are.
 print:
   push es
+  
+  ; set es
+  mov si, ds
+  mov es, si
+  ; set di
+  mov di, bp
 
   call strlen
   ; save result for later
@@ -121,9 +183,6 @@ print:
   mov ah, 0x03
   int 0x10
 
-  ; set es
-  mov si, ds
-  mov es, si
   ; length of a string
   mov cx, si
   ; black background, white text
@@ -137,7 +196,68 @@ print:
 
 read_error_str db "Failed to read sector. Halting", 0 
 
-succes_str db "Success",0
+succes_str db "Success",0xD,0xA,0
+
+; 8 bytes alignment
+times 0x1E0-($-$$) db 0
+; 24 bytes
+gdt:
+  .null_descriptor:
+    dq 0xDEADBEEFDEADFACE ; NULL descriptor
+
+  CODE equ 8
+  .code_descriptor:
+    ; limit low                         :16
+    dw 0xFFFF
+    ; base low                          :24
+    db 0x0, 0x0, 0x0
+    ; present flag                  P   :1
+    ; descriptor privilege level    DPL :2
+    ; descriptor type flag          S   :1
+    ; executalbe flag               E   :1
+    ; conforming flag               DC  :1
+    ; read-enable flag              RW  :1
+    ; accessed flag (CPU feedback)  A   :1
+    db 0b_1_00_1_1_0_1_0
+
+    ; granularity flag              G   :1
+    ; D flag, 16-bit heresy         DB  :1
+    ; L flag (for IA-32e)           L   :1
+    ; AVAILABLE                         :1
+    ; limit high                        :4
+    db 0b_1_1_0_0_1111
+
+    ; base high                         :8
+    db 0x0   
+
+  DATA equ 16
+  .data_descriptor:
+    ; limit low                         :16
+    dw 0xFFFF
+    ; base low                          :24
+    db 0x0, 0x0, 0x0
+    ; present flag                  P   :1
+    ; descriptor privilege level    DPL :2
+    ; descriptor type flag          S   :1
+    ; executalbe flag               E   :1
+    ; direction flag, heresy        DC  :1
+    ; write-enable flag             RW  :1
+    ; accessed flag (CPU feedback)  A   :1
+    db 0b_1_00_1_0_0_1_0
+
+    ; granularity flag              G   :1
+    ; D flag, 16-bit heresy         DB  :1
+    ; L flag (for IA-32e)           L   :1
+    ; AVAILABLE                         :1
+    ; limit high                        :4
+    db 0b_1_1_0_0_1111
+
+    ; base high                     :8
+    db 0x0  
+
+gdt_pseudodescriptor:
+  dw 0x18 - 1
+  dd gdt
 
 times 510-($-$$) db 0
 dw 0xAA55

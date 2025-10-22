@@ -22,6 +22,9 @@ MAIN_FLAGS = -std=c99 -O0 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-sta
 WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough -Werror
 GCC_FLAGS = $(MAIN_FLAGS) $(WARNINGS_FLAGS)
 
+MAIN_FLAGS += $(shell [ $(shell $(GCC) -dumpversion) -lt 15 ] && echo "-mno-red-zone" || echo "") 
+
+
 LD = ld
 LINKER_SCRIPT = link.ld
 LD_FLAGS = -m i386pe --image-base=0
@@ -53,11 +56,11 @@ kill:
 
 build: boot.img
 boot.img: $(BUILD_DIR)/os.bin check
-# 	@dd if=/dev/zero of=$(BUILD_DIR)/payload.img bs=1024 count=$$(((ACTUAL_KERNEL_SIZE / 1024) + (ACTUAL_KERNEL_SIZE % 1024) != 0))
+	@echo -e "\t\e[1mMaking image\e[0m"
 	@dd if=$(BUILD_DIR)/os.bin of=boot.img conv=notrunc
 
 echo:
-	@echo ECHO: $(GCC_FLAGS)
+	@echo ECHO: $(MAIN_FLAGS)
 
 compile: clean-compile $(C_OBJECTS)
 $(C_OBJECTS): $(C_SOURCES) $(C_HEADERS)
@@ -88,6 +91,8 @@ check: $(BUILD_DIR)/os.bin
 		@echo EXPECTED_KERNEL_SIZE: $(KERNEL_SIZE) kb;\
 		@echo ACTUAL_KERNEL_SIZE: $$((ACTUAL_KERNEL_SIZE / 1024)) kB;\
 		exit 127;\
+	else\
+		echo -e "\t\t\e[1mOK\e[0m";\
 	fi
 
 clean: clean-compile clean-assemble clean-link clean-bin clean-image
@@ -110,9 +115,11 @@ clean-image:
 	rm -f *.img
 
 test: boot.img
+	@echo -e "\t\e[1mRunning\e[0m"
 	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img
 
 debug: kill clean boot.img
+	@echo -e "\t\e[1mRunning debug\e[0m"
 	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img -s -S &
 	gdb
 

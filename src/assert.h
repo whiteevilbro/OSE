@@ -2,9 +2,10 @@
 #define ASSERT_H_
 
 #include <stdarg.h>
+#include <utils.h>
 
 #ifdef DEBUG
-  #define assert(COND) (COND) && kernel_panic()
+  #define assert(COND) (COND) ? (void) (0) : kernel_panic(__FILE__ ":" __stringify2(__LINE__) " assertion (" #COND ") failed")
 #else
   #define assert()
 #endif

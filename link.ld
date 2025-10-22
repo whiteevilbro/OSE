@@ -15,7 +15,7 @@ SECTIONS {
     }
     .end = .;
     .sizeb = .end - .start;
-    __end = .end;
+    __kernel_code_end = .end;
     __kernel_size_sectors = (.sizeb / 512) + ((.sizeb % 512) != 0);
 
     /DISCARD/ : {

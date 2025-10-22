@@ -82,32 +82,32 @@ mov ax, 0x1003
 ; bl == 0
 int 0x10
 
-; get current video mode
-; ah = number of character columns
-; bh = active page
-mov ah, 0x0F
-int 0x10
+; ; get current video mode
+; ; ah = number of character columns
+; ; bh = active page
+; mov ah, 0x0F
+; int 0x10
 
-movzx di, ah
+; movzx di, ah
 
-; get cursor position
-; dh = row
-; dl = column
-mov ah, 0x03
-int 0x10
+; ; get cursor position
+; ; dh = row
+; ; dl = column
+; mov ah, 0x03
+; int 0x10
 
-; hide cursor
-mov ah, 0x01
-mov ch, 0x20
-int 0x10
+; ; hide cursor
+; mov ah, 0x01
+; mov ch, 0x20
+; int 0x10
 
-movzx si, dh
+; movzx si, dh
 
-; push on stack according to System V i386 ABI
-sub sp, 4
-push edx
-push esi
-push edi
+; ; push on stack according to System V i386 ABI
+; sub sp, 4
+; push edx
+; push esi
+; push edi
 
 protected_mode_switch:
 lgdt [gdt_pseudodescriptor]

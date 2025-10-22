@@ -1,11 +1,9 @@
-#include "assert.h"
-#include "memmgnt.h"
-#include "vga.h"
-
 #include <assert.h>
+#include <memmgnt.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <vga.h>
 
 void kernel_entry() {
   size_t al[3] = {4, 8};

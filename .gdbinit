@@ -1,6 +1,10 @@
+file build/os.elf
 target remote localhost:1234
 set disassembly-flavor intel
-b *0x7c00
+set arch i8086
+br *0x7C00
+br kernel_entry
+br malloc_TITLE_CARD
+br halt
 c
-
-# set arch i80386
+c

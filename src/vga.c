@@ -14,31 +14,31 @@ static void write_rbuf(char* buf, size_t i, uint8_t flags, int width, char* pref
 static void write_str(const char* str, uint8_t flags, int width);
 
 static VGAChar* const VGA_TEXT_BASE = (VGAChar*) 0xB8000;
-static size_t COLUMNS = 80;
-static size_t ROWS = 25;
+static size_t page_columns = 80;
+static size_t page_rows = 25;
 
 static size_t row = 0;
 static size_t column = 0;
 
 void vga_init_printer(size_t rows, size_t columns) {
-  ROWS = rows;
-  COLUMNS = columns;
+  page_rows = rows;
+  page_columns = columns;
   row = 0;
   column = 0;
   vga_clear_screen();
 }
 
 void vga_clear_screen(void) {
-  memzero(VGA_TEXT_BASE, ROWS * COLUMNS * sizeof(VGAChar));
+  memzero(VGA_TEXT_BASE, page_rows * page_columns * sizeof(VGAChar));
 }
 
 void vga_print_char(VGAChar c, size_t x, size_t y) {
-  VGA_TEXT_BASE[COLUMNS * x + y] = c;
+  VGA_TEXT_BASE[page_columns * x + y] = c;
 }
 
 void vga_scroll_down(void) {
-  memmove(VGA_TEXT_BASE, VGA_TEXT_BASE + COLUMNS, (ROWS - 1) * COLUMNS * sizeof(VGAChar));
-  memzero(VGA_TEXT_BASE + (ROWS - 1) * COLUMNS, COLUMNS * sizeof(VGAChar));
+  memmove(VGA_TEXT_BASE, VGA_TEXT_BASE + page_columns, (page_rows - 1) * page_columns * sizeof(VGAChar));
+  memzero(VGA_TEXT_BASE + (page_rows - 1) * page_columns, page_columns * sizeof(VGAChar));
 }
 
 void vga_printf(const char* fmt, ...) {
@@ -57,11 +57,11 @@ static void write(const char c) {
       break;
     default:
       vga_print_char((VGAChar) {.repr = {.character = c, .fgcolor = WHITE, .bgcolor = BLACK}}, row, column++);
-      row += column / COLUMNS;
-      column %= COLUMNS;
+      row += column / page_columns;
+      column %= page_columns;
       break;
   }
-  if (row >= ROWS) {
+  if (row >= page_rows) {
     vga_scroll_down();
     row--;
   }

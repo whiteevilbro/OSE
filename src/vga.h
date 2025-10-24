@@ -39,7 +39,6 @@ typedef union {
 
 #pragma pack(pop)
 
-void vga_clear_screen(void);
 void vga_print_char(VGAChar c, size_t x, size_t y);
 void vga_vprintf(const char* fmt, va_list args);
 void vga_printf(const char* fmt, ...);

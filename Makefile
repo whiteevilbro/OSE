@@ -42,6 +42,7 @@ GCC_FLAGS += $(addprefix -I, $(call uniq,$(dir $(C_HEADERS))))
 # QEMU
 QEMU = qemu-system-i386
 QEMU_FLAGS = -cpu pentium2 -m 1g -monitor stdio -device VGA -no-shutdown -no-reboot
+QEMU_BOOT_DEVICE = -drive if=floppy,index=0,format=raw,file=boot.img
 
 # maximum kernel size in kB
 KERNEL_SIZE_MAX = 20
@@ -83,19 +84,13 @@ $(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf
 	@echo -e "\t\e[1mBuilding binary from ELF\e[0m"
 	objcopy -I elf32-i386 -O binary $(BUILD_DIR)/os.elf $(BUILD_DIR)/os.bin
 
-check: $(BUILD_DIR)/os.bin
+check: $(BUILD_DIR)/kernel_size.check
+$(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh
 	@echo -e "\t\e[1mChecking kernel size\e[0m"
-	$(eval ACTUAL_KERNEL_SIZE := $(shell wc -c < ./$(BUILD_DIR)/os.bin))
-	@echo -e "\t\e[1mKERNEL SIZE: $(ACTUAL_KERNEL_SIZE)\e[0m"
-	@if [ $(ACTUAL_KERNEL_SIZE) -le $$((KERNEL_SIZE_MAX * 1024)) ]; then\
-		@echo EXPECTED_KERNEL_SIZE: $(KERNEL_SIZE) kb;\
-		@echo ACTUAL_KERNEL_SIZE: $$((ACTUAL_KERNEL_SIZE / 1024)) kB;\
-		exit 127;\
-	else\
-		echo -e "\t\t\e[1mOK\e[0m";\
-	fi
+	@./check.sh $(BUILD_DIR) $(KERNEL_SIZE_MAX)
+	touch $@
 
-clean: clean-compile clean-assemble clean-link clean-bin clean-image
+clean: clean-compile clean-assemble clean-link clean-bin clean-image clean-check
 	rm -rf $(BUILD_DIR)
 	mkdir $(BUILD_DIR)
 
@@ -114,13 +109,16 @@ clean-bin:
 clean-image:
 	rm -f *.img
 
+clean-check:
+	rm -f $(BUILD_DIR)/*.check
+
 test: boot.img
 	@echo -e "\t\e[1mRunning\e[0m"
 	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img
 
 debug: kill clean boot.img
 	@echo -e "\t\e[1mRunning debug\e[0m"
-	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img -s -S &
+	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE) -s -S &
 	gdb
 
-.PHONY: all build clean test debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image
+.PHONY: all build clean test debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image clean-check

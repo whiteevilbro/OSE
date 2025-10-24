@@ -24,4 +24,6 @@
                          "popf" : : "r"(__eflags) : "memory", "cc")
 #endif
 
+void init_exceptions(void);
+
 #endif

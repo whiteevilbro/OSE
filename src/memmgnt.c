@@ -2,6 +2,7 @@
 
 #include "assert.h"
 #include "interrupts.h"
+#include "utils.h"
 
 extern size_t __kernel_code_end;
 
@@ -31,19 +32,27 @@ void memset(void* dest, int ch, size_t count) {
   }
 }
 
+size_t strlen(const char* str) {
+  size_t r = 0;
+  while (*str) {
+    r++;
+    str++;
+  }
+  return r;
+}
+
 #define ARENA_COUNT 2
 
-extern void halt();
 static void* const ARENA_START[ARENA_COUNT] = {NULL, (void*) 0x100000};
 static void* const ARENA_END[ARENA_COUNT] = {(void*) 0x80000, (void*) 0x400000};
 
 static void* current[2] = {ARENA_START[0], ARENA_START[1]};
 
-void init_TITLE_CARD_allocator() {
+void init_immortal_allocator(void) {
   current[0] = (void*) &__kernel_code_end;
 }
 
-void* malloc_TITLE_CARD(size_t size, size_t alignment) {
+void* malloc_immortal(size_t size, size_t alignment) {
   if (!size) {
     return NULL;
   }
@@ -60,12 +69,12 @@ void* malloc_TITLE_CARD(size_t size, size_t alignment) {
       return cur;
     }
   }
-  kernel_panic("not enough memory in TITLE_CARD allocator");
+  kernel_panic("Not enough memory in immortal allocator");
   __builtin_unreachable();
 }
 
-void* calloc_TITLE_CARD(size_t size, size_t alignment) {
-  void* result = malloc_TITLE_CARD(size, alignment);
+void* calloc_immortal(size_t size, size_t alignment) {
+  void* result = malloc_immortal(size, alignment);
   memzero(result, size);
   return result;
 }

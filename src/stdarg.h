@@ -11,5 +11,4 @@
 #define va_end(v)
 #define va_copy(dest, src) dest = src
 
-
 #endif

@@ -2,7 +2,10 @@
 
 extern kernel_entry
 extern __kernel_size_sectors
+extern universal_interrupt_handler
 global halt
+global collect_ctx
+global exp
 
 ; === BOOT DEVICE READ CONFIG ===
 
@@ -116,12 +119,12 @@ cld
 mov eax, cr0
 or eax, 1
 mov cr0, eax
-jmp CODE:protected_mode_trampoline
+jmp CODE_SEGMENT:protected_mode_trampoline
 
 
 [BITS 32]
 protected_mode_trampoline:
-mov eax, DATA
+mov eax, DATA_SEGMENT
 mov ds, eax
 mov ss, eax
 mov es, eax
@@ -138,6 +141,46 @@ jmp kernel_entry
 halt:
   jmp $
 
+; interrupt context collection
+collect_ctx:
+  push ds
+  push es
+  push fs
+  push gs
+  pusha
+  mov ebx, esp
+  
+  cld
+  mov eax, DATA_SEGMENT
+  mov ds, eax
+  mov es, eax
+  mov fs, eax
+  mov gs, eax
+
+  sub esp, 4
+  and esp, ~0xf
+  ; or esp, 4
+
+  mov DWORD [esp], ebx
+  call universal_interrupt_handler
+  call halt
+
+exp:
+  mov eax, 6
+  mov ebx, 5
+  mov ecx, 4
+  mov edx, 3
+  mov ebp, 2
+  mov edi, 1
+  mov esi, 0
+
+  int 0xff
+
+  ; div ebx
+
+  ; sti
+
+  call halt
 
 [BITS 16]
 
@@ -205,7 +248,7 @@ gdt:
   .null_descriptor:
     dq 0xDEADBEEFDEADFACE ; NULL descriptor
 
-  CODE equ 8
+  CODE_SEGMENT equ 8
   .code_descriptor:
     ; limit low                         :16
     dw 0xFFFF
@@ -230,7 +273,7 @@ gdt:
     ; base high                         :8
     db 0x0   
 
-  DATA equ 16
+  DATA_SEGMENT equ 16
   .data_descriptor:
     ; limit low                         :16
     dw 0xFFFF

@@ -1,13 +1,12 @@
 #include "assert.h"
 
 #include "interrupts.h"
+#include "utils.h"
 #include "vga.h"
-
-extern void halt();
 
 void vkernel_panic(const char* fmt, va_list args) {
   cli();
-  vga_printf(fmt, args);
+  vga_vprintf(fmt, args);
   halt();
 }
 

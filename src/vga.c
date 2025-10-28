@@ -1,4 +1,3 @@
-#define _LIBC_LIMITS_H_
 #include <assert.h>
 #include <limits.h>
 #include <memmgnt.h>

@@ -1,11 +1,6 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
-#define __stringify(x) #x
-#define __stringify2(x) __stringify(x)
-
-#define alignas(a) __attribute__((aligned(a)))
-
 extern void halt();
 
 typedef enum {

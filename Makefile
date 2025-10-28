@@ -53,29 +53,31 @@ KERNEL_SIZE_MAX = 20
 all: kill clean build test
 
 # Incremental tasks
+$(BUILD_DIR):
+	mkdir -p $@
 
-boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check
+boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check | $(BUILD_DIR)
 	@echo -e "\t\e[1mMaking image\e[0m"
 	@dd if=$(BUILD_DIR)/os.bin of=boot.img conv=notrunc
 
-$(C_OBJECTS): $(C_SOURCES) $(C_HEADERS)
+$(C_OBJECTS): $(C_SOURCES) $(C_HEADERS) | $(BUILD_DIR)
 	@echo -e "\t\e[1mCompiling\e[0m" $(notdir $*)
 	$(GCC) $(GCC_FLAGS) -c $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).c") -o $@
 
-$(ASM_OBJECTS): $(ASM_SOURCES)
+$(ASM_OBJECTS): $(ASM_SOURCES) | $(BUILD_DIR)
 	@echo -e "\t\e[1mAssembling\e[0m" $(notdir $*)
 	$(NASM) $(NASM_FLAGS) $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).asm") -o $@
 
-$(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT)
+$(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT) | $(BUILD_DIR)
 	@echo -e "\t\e[1mLinking\e[0m"
 	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>/dev/null
 	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(BUILD_DIR)/boot.o $(C_OBJECTS) -o $(BUILD_DIR)/os.elf
 
-$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf
+$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf | $(BUILD_DIR)
 	@echo -e "\t\e[1mBuilding binary from ELF\e[0m"
 	objcopy -I elf32-i386 -O binary $(BUILD_DIR)/os.elf $(BUILD_DIR)/os.bin
 
-$(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh
+$(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh | $(BUILD_DIR)
 	@echo -e "\t\e[1mChecking kernel size\e[0m"
 	@./check.sh $(BUILD_DIR) $(KERNEL_SIZE_MAX)
 	touch $@
@@ -85,19 +87,18 @@ $(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh
 kill:
 	kill $(shell ps | grep -P -o -m 1 "\d+(?=.*qemu)" | head -1) 2>/dev/null || true
 
-build: boot.img
 echo:
-	@echo ECHO: $(MAIN_FLAGS)
+	@echo ECHO: $(ASM_OBJECTS)
 
 compile: clean-compile $(C_OBJECTS)
 assemble: clean-assemble $(ASM_OBJECTS)
 link: clean-link $(BUILD_DIR)/os.elf
 bin: clean-bin $(BUILD_DIR)/os.bin
 check: $(BUILD_DIR)/kernel_size.check
+image: boot.img
 
 clean: clean-compile clean-assemble clean-link clean-bin clean-image clean-check
 	rm -rf $(BUILD_DIR)
-	mkdir $(BUILD_DIR)
 
 clean-compile:
 	rm -f $(C_OBJECTS)

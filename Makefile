@@ -50,11 +50,11 @@ KERNEL_SIZE_MAX = 20
 # =============================================================================
 # Tasks
 
-all: kill clean build test
+all: kill test
 
 # Incremental tasks
 $(BUILD_DIR):
-	mkdir -p $@
+	@mkdir -p $@
 
 boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check | $(BUILD_DIR)
 	@echo -e "\t\e[1mMaking image\e[0m"
@@ -85,7 +85,7 @@ $(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh | $(BUILD_DIR)
 # PHONY Tasks
 
 kill:
-	kill $(shell ps | grep -P -o -m 1 "\d+(?=.*qemu)" | head -1) 2>/dev/null || true
+	@kill $(shell ps | grep -P -o -m 1 "\d+(?=.*qemu)" | head -1) 2>/dev/null || true
 
 echo:
 	@echo ECHO: $(ASM_OBJECTS)

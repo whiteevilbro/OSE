@@ -104,9 +104,7 @@ static void* generate_trampolines(void) {
   uint8_t f = 0;
   for (size_t vector = 0; vector < TRAMPOLINE_COUNT; vector++) {
     if (!(f = has_error_code((uint8_t) vector)))
-      *trampoline++ = 0x0E; // push cs
-    // else
-    //   *trampoline++ = 0x90;
+      *trampoline++ = 0x0E;           // push cs
     *trampoline++ = 0x6A;             // push imm8
     *trampoline++ = (uint8_t) vector; // vector imm8
 

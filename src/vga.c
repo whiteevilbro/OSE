@@ -285,7 +285,7 @@ void vga_vprintf(const char* fmt, va_list args) {
           if (*fmt != 'c') {
             parsing = true;
             flags = 0;
-            // width = 0;
+            width = 0;
             continue;
           }
           fmt++;

@@ -9,7 +9,7 @@
 
   #define assert(COND) (COND) ? (void) (0) : kernel_panic(__FILE__ ":" __stringify2(__LINE__) " assertion (" #COND ") failed")
 #else
-  #define assert()
+  #define assert(COND)
 #endif
 
 void vkernel_panic(const char* fmt, va_list args);

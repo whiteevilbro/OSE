@@ -1,7 +1,7 @@
 #ifndef UTILS_H_
 #define UTILS_H_
 
-extern void halt();
+extern void halt(void);
 
 typedef enum {
   RING_0 = 0x0,

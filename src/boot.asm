@@ -135,28 +135,22 @@ collect_ctx:
 
   mov DWORD [esp], ebx
   call universal_interrupt_handler
-  jmp halt
+
+  mov esp, ebx
+  popa
+  pop gs
+  pop fs
+  pop es
+  pop ds
+  add esp, 8
+  iret
 
 exp:
-  mov eax, 6
-  mov ecx, 5
-  mov edx, 4
-  mov ebx, 3
-  mov ebp, 2
-  mov esi, 1
-  mov edi, 0
-
-  int 0xff
-
-  ; div edi
-
-  ; sti
-
-  call halt
+  call NEAR halt
 
 memcpy:
 memmove:
-  
+  ; todo
 
 ; #endregion
 

@@ -2,6 +2,7 @@
 # Variables
 
 SHELL = /bin/bash
+NULL = /dev/null
 
 define uniq =
   $(eval seen :=)
@@ -18,8 +19,10 @@ NASM = nasm
 NASM_FLAGS = -felf32 -g
 
 GCC = gcc
-MAIN_FLAGS = -std=c99 -O0 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -g3 -DDEBUG -masm=intel
-WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough -Werror
+MAIN_FLAGS = -std=c99 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -masm=intel
+WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough
+DEBUG_FLAGS = -O0 -g3 -DDEBUG
+RELEASE_FLAGS = -O2 -Werror
 GCC_FLAGS = $(MAIN_FLAGS) $(WARNINGS_FLAGS)
 
 MAIN_FLAGS += $(shell [ $(shell $(GCC) -dumpversion) -lt 15 ] && echo "-mno-red-zone" || echo "") 
@@ -70,7 +73,7 @@ $(ASM_OBJECTS): $(ASM_SOURCES) | $(BUILD_DIR)
 
 $(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT) | $(BUILD_DIR)
 	@echo -e "\t\e[1mLinking\e[0m"
-	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>/dev/null
+	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>$(NULL)
 	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(BUILD_DIR)/boot.o $(C_OBJECTS) -o $(BUILD_DIR)/os.elf
 
 $(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf | $(BUILD_DIR)
@@ -85,7 +88,7 @@ $(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh | $(BUILD_DIR)
 # PHONY Tasks
 
 kill:
-	@kill $(shell ps | grep -P -o -m 1 "\d+(?=.*qemu)" | head -1) 2>/dev/null || true
+	@kill $(shell ps | grep -P -o -m 1 "\d+(?=.*qemu)" | head -1) 2>$(NULL) || true
 
 echo:
 	@echo ECHO: $(ASM_OBJECTS)
@@ -98,7 +101,7 @@ check: $(BUILD_DIR)/kernel_size.check
 image: boot.img
 
 clean: clean-compile clean-assemble clean-link clean-bin clean-image clean-check
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR) 
 
 clean-compile:
 	rm -f $(C_OBJECTS)
@@ -118,10 +121,37 @@ clean-image:
 clean-check:
 	rm -f $(BUILD_DIR)/*.check
 
-test: boot.img
-	@echo -e "\t\e[1mRunning\e[0m"
-	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img
+$(BUILD_DIR)/.RELEASE: | $(BUILD_DIR)
+	touch $@
 
+release: MAIN_FLAGS += $(RELEASE_FLAGS)
+release: MAKEFLAGS += --no-print-directory
+release: boot.img
+ifeq ("$(wildcard $(BUILD_DIR)/.RELEASE)","")
+	@$(MAKE) clean
+	@$(MAKE) $(BUILD_DIR)/.RELEASE
+	@$(MAKE) release
+else
+	@echo -e "\t\e[1mRunning release\e[0m"
+	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE)
+endif
+
+$(BUILD_DIR)/.DEBUG: | $(BUILD_DIR)
+	touch $@
+
+test: MAIN_FLAGS += $(DEBUG_FLAGS)
+test: MAKEFLAGS += --no-print-directory
+test: boot.img
+ifeq ("$(wildcard $(BUILD_DIR)/.DEBUG)","")
+	@$(MAKE) clean
+	@$(MAKE) $(BUILD_DIR)/.DEBUG
+	@$(MAKE) test
+else
+	@echo -e "\t\e[1mRunning\e[0m"
+	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE)
+endif
+
+debug: MAIN_FLAGS += $(DEBUG_FLAGS)
 debug: kill clean boot.img
 	@echo -e "\t\e[1mRunning debug\e[0m"
 	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE) -s -S &

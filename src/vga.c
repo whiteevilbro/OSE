@@ -91,9 +91,9 @@ static void write_int(int x, const uint8_t flags, int width) {
   char prefix = 0;
   size_t buf_i = 0;
 
-  bool neg = (width < 0);
+  bool neg = (x < 0);
   if (neg) {
-    width = -width;
+    x = -x;
     prefix = '-';
   } else {
     if (flags & SIGN_FLAG) {

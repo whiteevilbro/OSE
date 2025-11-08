@@ -41,6 +41,7 @@ ASM_OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(patsubst ./$(SOURCE_DIR)/%.a
 C_OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(patsubst ./$(SOURCE_DIR)/%.c, %.o, $(C_SOURCES))))
 
 GCC_FLAGS += $(addprefix -I, $(call uniq,$(dir $(C_HEADERS))))
+GCC_FLAGS += $(MODE_FLAGS)
 
 # QEMU
 QEMU = qemu-system-i386
@@ -133,19 +134,26 @@ clean-check:
 	rm -f $(BUILD_DIR)/*.check
 
 # ===== BUILD MODES =====
+export MODE
+export MODE_FLAGS
+build: | $(BUILD_DIR)/
+ifeq (,$(wildcard $(MODE)))
+	$(MAKE) clean
+	$(MAKE) $(MODE)
+endif
+	$(MAKE) boot.img
+
 
 $(BUILD_DIR)/.RELEASE: | $(BUILD_DIR)/
 	touch $@
 
-build-release: MAIN_FLAGS += $(RELEASE_FLAGS)
+build-release: MODE = $(BUILD_DIR)/.RELEASE
+build-release: MODE_FLAGS += $(RELEASE_FLAGS)
 build-release: MAKEFLAGS += --no-print-directory
-build-release: | $(BUILD_DIR)/
-ifeq ("$(wildcard $(BUILD_DIR)/.RELEASE)","")
-	@$(MAKE) clean
-	@$(MAKE) $(BUILD_DIR)/.RELEASE
-endif
-	@$(MAKE) image
+build-release:
+	$(MAKE) build
 
+release: run-release
 run-release: build-release
 	@echo -e "\t\e[1mRunning release\e[0m"
 	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE)
@@ -153,15 +161,13 @@ run-release: build-release
 $(BUILD_DIR)/.DEBUG: | $(BUILD_DIR)/
 	touch $@
 
-build-debug: MAIN_FLAGS += $(DEBUG_FLAGS)
+build-debug: MODE = $(BUILD_DIR)/.DEBUG
+build-debug: MODE_FLAGS += $(DEBUG_FLAGS)
 build-debug: MAKEFLAGS += --no-print-directory
-build-debug: | $(BUILD_DIR)/
-ifeq ("$(wildcard $(BUILD_DIR)/.DEBUG)","")
-	@$(MAKE) clean
-	@$(MAKE) $(BUILD_DIR)/.DEBUG
-endif
-	@$(MAKE) image
+build-debug:
+	$(MAKE) build
 
+test: run-debug
 run-debug: build-debug
 	@echo -e "\t\e[1mRunning debug\e[0m"
 	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE)
@@ -175,5 +181,5 @@ endif
 	gdb
 	@$(MAKE) kill
 
-.PHONY: all clean debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image clean-check clangd
-.PHONY: build-release run-release build-debug run-debug
+.PHONY: all test release clean debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image clean-check clangd
+.PHONY: build-release run-release build-debug run-debug build

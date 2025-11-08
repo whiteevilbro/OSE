@@ -54,15 +54,15 @@ typedef struct {
   uint32_t ecx;
   uint32_t eax; // 32
 
-  alignas(4) uint16_t gs;
-  alignas(4) uint16_t fs;
-  alignas(4) uint16_t es;
-  alignas(4) uint16_t ds; // 16
+  Alignas(4) uint16_t gs;
+  Alignas(4) uint16_t fs;
+  Alignas(4) uint16_t es;
+  Alignas(4) uint16_t ds; // 16
 
-  alignas(4) uint8_t vector; // 4
+  Alignas(4) uint8_t vector; // 4
   uint32_t error_code;
   uint32_t eip;
-  alignas(4) uint16_t cs;
+  Alignas(4) uint16_t cs;
   uint32_t eflags; // 16
 } Context;
 

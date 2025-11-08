@@ -1,6 +1,5 @@
 #include "experiments.h"
 
-#include "assert.h"
 #include "interrupts.h"
 #include "utils.h"
 #include "vga.h"

@@ -1,6 +1,5 @@
 #include "vga.h"
 
-#include "assert.h"
 #include "memmgnt.h"
 
 #include <limits.h>

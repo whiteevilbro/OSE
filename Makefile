@@ -53,37 +53,46 @@ KERNEL_SIZE_MAX = 20
 # =============================================================================
 # Tasks
 
-all: kill test
+all: kill run-debug
 
 # Incremental tasks
-$(BUILD_DIR):
+$(BUILD_DIR)/:
 	@mkdir -p $@
 
-boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check | $(BUILD_DIR)
+boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check | $(BUILD_DIR)/
 	@echo -e "\t\e[1mMaking image\e[0m"
 	@dd if=$(BUILD_DIR)/os.bin of=boot.img conv=notrunc
 
-$(C_OBJECTS): $(C_SOURCES) $(C_HEADERS) | $(BUILD_DIR)
+$(C_OBJECTS): $(C_SOURCES) $(C_HEADERS) | $(BUILD_DIR)/
 	@echo -e "\t\e[1mCompiling\e[0m" $(notdir $*)
 	$(GCC) $(GCC_FLAGS) -c $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).c") -o $@
 
-$(ASM_OBJECTS): $(ASM_SOURCES) | $(BUILD_DIR)
+$(ASM_OBJECTS): $(ASM_SOURCES) | $(BUILD_DIR)/
 	@echo -e "\t\e[1mAssembling\e[0m" $(notdir $*)
 	$(NASM) $(NASM_FLAGS) $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).asm") -o $@
 
-$(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT) | $(BUILD_DIR)
+$(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT) | $(BUILD_DIR)/
 	@echo -e "\t\e[1mLinking\e[0m"
 	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>$(NULL)
 	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(BUILD_DIR)/boot.o $(C_OBJECTS) -o $(BUILD_DIR)/os.elf
 
-$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf | $(BUILD_DIR)
+$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf | $(BUILD_DIR)/
 	@echo -e "\t\e[1mBuilding binary from ELF\e[0m"
 	objcopy -I elf32-i386 -O binary $(BUILD_DIR)/os.elf $(BUILD_DIR)/os.bin
 
-$(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh | $(BUILD_DIR)
+$(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh | $(BUILD_DIR)/
 	@echo -e "\t\e[1mChecking kernel size\e[0m"
 	@./check.sh $(BUILD_DIR) $(KERNEL_SIZE_MAX)
 	touch $@
+
+compile_commands.json: MAKEFLAGS += --no-print-directory
+compile_commands.json: Makefile
+ifeq ($(shell which bear),"")
+	$(warning Cannot make compile-commands.json automatically.)
+else
+	@$(MAKE) clean >$(NULL)
+	@bear -- $(MAKE) $(C_OBJECTS) >$(NULL)
+endif
 
 # PHONY Tasks
 
@@ -99,6 +108,8 @@ link: clean-link $(BUILD_DIR)/os.elf
 bin: clean-bin $(BUILD_DIR)/os.bin
 check: $(BUILD_DIR)/kernel_size.check
 image: boot.img
+
+clangd: compile_commands.json
 
 clean: clean-compile clean-assemble clean-link clean-bin clean-image clean-check
 	rm -rf $(BUILD_DIR) 
@@ -121,40 +132,48 @@ clean-image:
 clean-check:
 	rm -f $(BUILD_DIR)/*.check
 
-$(BUILD_DIR)/.RELEASE: | $(BUILD_DIR)
+# ===== BUILD MODES =====
+
+$(BUILD_DIR)/.RELEASE: | $(BUILD_DIR)/
 	touch $@
 
-release: MAIN_FLAGS += $(RELEASE_FLAGS)
-release: MAKEFLAGS += --no-print-directory
-release: boot.img
+build-release: MAIN_FLAGS += $(RELEASE_FLAGS)
+build-release: MAKEFLAGS += --no-print-directory
+build-release: | $(BUILD_DIR)/
 ifeq ("$(wildcard $(BUILD_DIR)/.RELEASE)","")
 	@$(MAKE) clean
 	@$(MAKE) $(BUILD_DIR)/.RELEASE
-	@$(MAKE) release
-else
+endif
+	@$(MAKE) image
+
+run-release: build-release
 	@echo -e "\t\e[1mRunning release\e[0m"
 	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE)
-endif
 
-$(BUILD_DIR)/.DEBUG: | $(BUILD_DIR)
+$(BUILD_DIR)/.DEBUG: | $(BUILD_DIR)/
 	touch $@
 
-test: MAIN_FLAGS += $(DEBUG_FLAGS)
-test: MAKEFLAGS += --no-print-directory
-test: boot.img
+build-debug: MAIN_FLAGS += $(DEBUG_FLAGS)
+build-debug: MAKEFLAGS += --no-print-directory
+build-debug: | $(BUILD_DIR)/
 ifeq ("$(wildcard $(BUILD_DIR)/.DEBUG)","")
 	@$(MAKE) clean
 	@$(MAKE) $(BUILD_DIR)/.DEBUG
-	@$(MAKE) test
-else
-	@echo -e "\t\e[1mRunning\e[0m"
-	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE)
 endif
+	@$(MAKE) image
 
-debug: MAIN_FLAGS += $(DEBUG_FLAGS)
-debug: kill clean boot.img
+run-debug: build-debug
 	@echo -e "\t\e[1mRunning debug\e[0m"
+	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE)
+
+debug: kill
+ifeq ("$(wildcard boot.img)","")
+	@$(MAKE) build-debug
+endif
+	@echo -e "\t\e[1mDebugging\e[0m"
 	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE) -s -S &
 	gdb
+	@$(MAKE) kill
 
-.PHONY: all build clean test debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image clean-check
+.PHONY: all clean debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image clean-check clangd
+.PHONY: build-release run-release build-debug run-debug

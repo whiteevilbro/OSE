@@ -30,7 +30,7 @@ IndentExternBlock: Indent
 IndentGotoLabels: false
 IndentPPDirectives: BeforeHash
 IndentWidth: 2
-#InsertNewlineAtEOF: true
+InsertNewlineAtEOF: true
 KeepEmptyLinesAtTheStartOfBlocks: false
 Language: Cpp
 MaxEmptyLinesToKeep: 2

@@ -2,9 +2,8 @@
 #define MEMMGNT_H_
 
 #include <stddef.h>
-#include <stdint.h>
 
-#define alignas(a) __attribute__((aligned(a)))
+#define Alignas(a) __attribute__((aligned(a)))
 
 void memmove(void* dest, const void* src, size_t count);
 // void memcpy(void* dest, const void* src, size_t count);

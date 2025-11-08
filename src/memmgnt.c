@@ -2,7 +2,6 @@
 
 #include "assert.h"
 #include "interrupts.h"
-#include "utils.h"
 
 extern size_t __kernel_code_end;
 

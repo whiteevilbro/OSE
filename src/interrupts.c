@@ -169,11 +169,6 @@ void set_interrupt_handler(uint8_t vector, GateDescriptorType type, InterruptHan
 
 #define PIC_SLAVE_IRQ_LINE 0x2
 
-#define pseudodelay()                             \
-  for (size_t i = 0; i < ((size_t) (300)); i++) { \
-    outb(0x80, 0xff);                             \
-  }
-
 void init_pic(EOIType automatic_EOI) {
   union ICW1 {
     struct ICW1S {

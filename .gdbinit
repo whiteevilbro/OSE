@@ -1,7 +1,8 @@
+file build/os.elf
 target remote localhost:1234
 set disassembly-flavor intel
 set arch i8086
-b *0x7c00
-display/i $pc
+br kernel_entry
+br universal_interrupt_handler
+br write_hex
 c
-

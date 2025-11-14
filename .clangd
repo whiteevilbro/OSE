@@ -1,0 +1,20 @@
+Diagnostics:
+  Suppress: pragma-pack
+
+
+CompileFlags:   
+  Add: [-m32, -ffreestanding, -no-pie, -fno-pie, -mno-sse, -fno-stack-protector, -masm=intel, 
+    -Wall, -Wextra, -Wpedantic, -Wduplicated-branches, -Wduplicated-cond, -Wcast-qual, -Wconversion, -Wsign-conversion, -Wlogical-op, -Wno-implicit-fallthrough]
+  
+---
+
+If:
+	PathMatch: .*\.c
+CompileFlags:
+  Add: [-xc, -std=c99]
+---
+
+If:
+	PathMatch: .*\.h
+CompileFlags:
+  Add: [-xc-header, -std=c99]

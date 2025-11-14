@@ -1,3 +1,6 @@
-.tmp
-bar
 *.img
+*.bin
+.vscode
+.cache
+build
+compile_commands.json

@@ -16,15 +16,15 @@
 #pragma pack(push, 1)
 
 typedef struct {
-  uint16_t offset_low : 16;
-  uint16_t segment_selector : 16;
-  uint8_t reserved : 5;
-  uint8_t fixed1 : 3;
-  GateDescriptorType type : 4;
-  uint8_t fixed2 : 1;
+  uint16_t offset_low                       : 16;
+  uint16_t segment_selector                 : 16;
+  uint8_t reserved                          : 5;
+  uint8_t fixed1                            : 3;
+  GateDescriptorType type                   : 4;
+  uint8_t fixed2                            : 1;
   PrivilegeLevel descriptor_privilege_level : 2;
-  uint8_t present : 1;
-  uint16_t offset_high : 16;
+  uint8_t present                           : 1;
+  uint16_t offset_high                      : 16;
 } GateDescriptorS;
 
 typedef union {
@@ -177,7 +177,7 @@ void init_pic(EOIType automatic_EOI) {
       enum {
         CASCADE_MODE = 0x0,
         SINGLE_MODE = 0x1,
-      } sngl : 1;
+      } sngl        : 1;
 
       uint8_t zero2 : 1;
 
@@ -186,8 +186,8 @@ void init_pic(EOIType automatic_EOI) {
         LEVEL_TRIGGERED_MOCE = 0x1,
       } trigger_mode : 1;
 
-      uint8_t one : 1;
-      uint8_t zero1 : 4;
+      uint8_t one    : 1;
+      uint8_t zero1  : 4;
     } repr;
 
     uint8_t byte;
@@ -195,7 +195,7 @@ void init_pic(EOIType automatic_EOI) {
 
   union ICW2 {
     struct ICW2S {
-      uint8_t zero : 3;
+      uint8_t zero   : 3;
       uint8_t vector : 5;
     } repr;
 
@@ -211,7 +211,7 @@ void init_pic(EOIType automatic_EOI) {
       enum {
         MODE_MCS8x = 0x0,
         MODE_808x = 0x1,
-      } mode : 1;
+      } mode                : 1;
 
       EOIType automatic_EOI : 1;
 
@@ -219,11 +219,11 @@ void init_pic(EOIType automatic_EOI) {
         NON_BUFFERED_MODE = 0x0,
         BUFFERED_MODE_SLAVE = 0x2,
         BUFFERED_MODE_MASTER = 0x3,
-      } buffer_mode : 2;
+      } buffer_mode                  : 2;
 
       bool special_fully_nested_mode : 1;
 
-      uint8_t zero : 3;
+      uint8_t zero                   : 3;
     } repr;
 
     uint8_t byte;

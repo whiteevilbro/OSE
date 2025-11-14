@@ -1,4 +1,6 @@
 BasedOnStyle: LLVM
+AlignConsecutiveBitFields: AcrossEmptyLinesAndComments
+AlignConsecutiveAssignments: AcrossEmptyLinesAndComments
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: false

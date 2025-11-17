@@ -18,19 +18,19 @@ typedef union {
     bool bcd : 1;
 
     enum {
-      INTERRUPT_ON_TERMINAL_COUNT = 0x0,
+      INTERRUPT_ON_TERMINAL_COUNT     = 0x0,
       HARDWARE_RETRIGGERABLE_ONE_SHOT = 0x1,
-      RATE_GENERATOR = 0x2,
-      SQUARE_WAVE_MODE = 0x3,
-      SOFTWARE_TRIGGERED_STROBE = 0x4,
-      HARDWARE_TRIGGERED_STROBE = 0x5,
+      RATE_GENERATOR                  = 0x2,
+      SQUARE_WAVE_MODE                = 0x3,
+      SOFTWARE_TRIGGERED_STROBE       = 0x4,
+      HARDWARE_TRIGGERED_STROBE       = 0x5,
     } mode : 3;
 
     enum {
       COUNTER_LATCH_COMMAND = 0x0,
-      LSB_ONLY = 0x1,
-      MSB_ONLY = 0x2,
-      LSB_MSB = 0x3,
+      LSB_ONLY              = 0x1,
+      MSB_ONLY              = 0x2,
+      LSB_MSB               = 0x3,
     } read_write : 2;
 
     enum {

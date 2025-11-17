@@ -41,7 +41,7 @@
 
 typedef enum {
   INTERRUPT_GATE = 0xE,
-  TRAP_GATE = 0xF,
+  TRAP_GATE      = 0xF,
 } GateDescriptorType;
 
 typedef struct {
@@ -68,9 +68,9 @@ typedef struct {
 
 typedef enum {
   SYSTEM_TIMER = 0x1,
-  KEYBOARD = 0x1 << 1,
+  KEYBOARD     = 0x1 << 1,
 
-  MOUSE = (0x1 << 4) | 0x100,
+  MOUSE         = (0x1 << 4) | 0x100,
   ATA_CHANNEL_1 = (0x1 << 6) | 0x100,
 
   FLOPPY = 0x1 << 6,
@@ -80,9 +80,9 @@ typedef enum {
 
 typedef enum {
   SYSTEM_TIMER_VECTOR = PIC_MASTER_VECTOR_RANGE_START,
-  KEYBOARD_VECTOR = PIC_MASTER_VECTOR_RANGE_START + 1,
+  KEYBOARD_VECTOR     = PIC_MASTER_VECTOR_RANGE_START + 1,
 
-  MOUSE_VECTOR = PIC_SLAVE_VECTOR_RANGE_START + 4,
+  MOUSE_VECTOR         = PIC_SLAVE_VECTOR_RANGE_START + 4,
   ATA_CHANNEL_1_VECTOR = PIC_SLAVE_VECTOR_RANGE_START + 6,
 
   FLOPPY_VECTOR = PIC_MASTER_VECTOR_RANGE_START + 6,
@@ -90,7 +90,7 @@ typedef enum {
 
 typedef enum {
   NON_AUTOMATIC_EOI = 0,
-  AUTOMATIC_EOI = 1,
+  AUTOMATIC_EOI     = 1,
 } EOIType;
 
 typedef void (*InterruptHandler)(const Context* const);

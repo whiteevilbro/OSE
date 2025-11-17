@@ -1,6 +1,14 @@
 BasedOnStyle: LLVM
-AlignConsecutiveBitFields: AcrossEmptyLinesAndComments
-AlignConsecutiveAssignments: AcrossEmptyLinesAndComments
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossComments: true
+  AcrossEmptyLines: false
+AlignConsecutiveMacros:
+  Enabled: false
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: false

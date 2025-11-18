@@ -13,7 +13,7 @@ static void write_char(char c, uint8_t flags, int width);
 static void write_rbuf(char* buf, size_t i, uint8_t flags, int width, char* prefix, size_t prefix_size);
 static void write_str(const char* str, uint8_t flags, int width);
 
-static VGAChar* const VGA_TEXT_BASE = (VGAChar*) 0xB8000;
+static VGAChar* const VGA_TEXT_BASE = (VGAChar* const) 0xB8000;
 static size_t page_columns          = 80;
 static size_t page_rows             = 25;
 

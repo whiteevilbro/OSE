@@ -19,7 +19,7 @@ NASM = nasm
 NASM_FLAGS = -felf32 -g
 
 GCC = gcc
-MAIN_FLAGS = -std=c99 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -masm=intel
+MAIN_FLAGS = -xc -std=c99 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -masm=intel
 WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough
 DEBUG_FLAGS = -O0 -g3 -DDEBUG
 RELEASE_FLAGS = -O2 -Werror

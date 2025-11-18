@@ -1,3 +1,4 @@
+#include "acpi.h"
 #include "experiments.h"
 #include "interrupts.h"
 #include "memmgnt.h"
@@ -9,10 +10,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-void kernel_entry(void) {
+void kernel_entry(const void* memsize) {
   vga_init_printer(25, 80);
   init_immortal_allocator();
   init_interrupts();
+  init_acpi((void*) (((size_t) memsize) << 10));
 
   init_pic(AUTOMATIC_EOI);
   init_timer(1000);

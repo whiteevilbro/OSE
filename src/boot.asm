@@ -82,7 +82,13 @@ video_settings:
   ; bl == 0
   int 0x10
 
-  protected_mode_switch:
+memory:
+  int 0x12
+  sub sp, 12,
+  push WORD 0
+  push ax
+
+protected_mode_switch:
   lgdt [gdt_pseudodescriptor]
   cli
   cld

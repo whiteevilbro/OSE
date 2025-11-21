@@ -13,7 +13,7 @@
                          "pop %0" : "=r"(__eflags) : : "memory", "redzone")
   #define popfd()                      \
     __asm__ __volatile__("push %0\n\t" \
-                         "popf" : : "=r"(__eflags) : : "memory", "cc", "redzone")
+                         "popf" : : "=r"(__eflags) : "memory", "cc", "redzone")
 #else
   #define pushfd()                   \
     uint32_t __eflags;               \
@@ -23,5 +23,7 @@
     __asm__ __volatile__("push %0\n\t" \
                          "popf" : : "r"(__eflags) : "memory", "cc")
 #endif
+
+void init_exceptions(void);
 
 #endif

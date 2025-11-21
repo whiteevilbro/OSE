@@ -24,26 +24,25 @@ typedef enum {
   WHITE = 15
 } VGA_color;
 
-#pragma pack(push, 2)
+#pragma pack(push, 1)
 
 typedef struct VGA_char {
   char character : 8;
   VGA_color fgcolor : 4;
   VGA_color bgcolor : 4;
-} VGA_char;
+} VGACharS;
 
 typedef union {
-  VGA_char repr;
+  VGACharS repr;
   uint16_t attrchar;
-} VGA_charu;
+} VGAChar;
 
 #pragma pack(pop)
 
-void vga_clear_screen();
-void vga_print_char(VGA_charu c, size_t x, size_t y);
+void vga_print_char(VGAChar c, size_t x, size_t y);
 void vga_vprintf(const char* fmt, va_list args);
 void vga_printf(const char* fmt, ...);
-void vga_clear_screen();
+void vga_clear_screen(void);
 void vga_init_printer(size_t rows, size_t columns);
 
 #endif

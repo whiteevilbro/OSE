@@ -18,7 +18,7 @@ NASM = nasm
 NASM_FLAGS = -felf32 -g
 
 GCC = gcc
-MAIN_FLAGS = -std=c99 -O0 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -g3 -DDEBUG
+MAIN_FLAGS = -std=c99 -O0 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -g3 -DDEBUG -masm=intel
 WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough -Werror
 GCC_FLAGS = $(MAIN_FLAGS) $(WARNINGS_FLAGS)
 
@@ -42,6 +42,7 @@ GCC_FLAGS += $(addprefix -I, $(call uniq,$(dir $(C_HEADERS))))
 # QEMU
 QEMU = qemu-system-i386
 QEMU_FLAGS = -cpu pentium2 -m 1g -monitor stdio -device VGA -no-shutdown -no-reboot
+QEMU_BOOT_DEVICE = -drive if=floppy,index=0,format=raw,file=boot.img
 
 # maximum kernel size in kB
 KERNEL_SIZE_MAX = 20
@@ -49,55 +50,55 @@ KERNEL_SIZE_MAX = 20
 # =============================================================================
 # Tasks
 
-all: kill clean build test
+all: kill test
 
-kill:
-	kill $(shell ps | grep -P -o -m 1 "\d+(?=.*qemu)" | head -1) 2>/dev/null || true
+# Incremental tasks
+$(BUILD_DIR):
+	@mkdir -p $@
 
-build: boot.img
-boot.img: $(BUILD_DIR)/os.bin check
+boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check | $(BUILD_DIR)
 	@echo -e "\t\e[1mMaking image\e[0m"
 	@dd if=$(BUILD_DIR)/os.bin of=boot.img conv=notrunc
 
-echo:
-	@echo ECHO: $(MAIN_FLAGS)
-
-compile: clean-compile $(C_OBJECTS)
-$(C_OBJECTS): $(C_SOURCES) $(C_HEADERS)
+$(C_OBJECTS): $(C_SOURCES) $(C_HEADERS) | $(BUILD_DIR)
 	@echo -e "\t\e[1mCompiling\e[0m" $(notdir $*)
 	$(GCC) $(GCC_FLAGS) -c $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).c") -o $@
 
-assemble: clean-assemble $(ASM_OBJECTS)
-$(ASM_OBJECTS): $(ASM_SOURCES)
+$(ASM_OBJECTS): $(ASM_SOURCES) | $(BUILD_DIR)
 	@echo -e "\t\e[1mAssembling\e[0m" $(notdir $*)
 	$(NASM) $(NASM_FLAGS) $(shell find -L ./$(SOURCE_DIR)/ -iname "$(notdir $*).asm") -o $@
 
-link: clean-link $(BUILD_DIR)/os.elf
-$(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT)
+$(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT) | $(BUILD_DIR)
 	@echo -e "\t\e[1mLinking\e[0m"
 	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>/dev/null
 	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(BUILD_DIR)/boot.o $(C_OBJECTS) -o $(BUILD_DIR)/os.elf
 
-bin: clean-bin $(BUILD_DIR)/os.bin
-$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf
+$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf | $(BUILD_DIR)
 	@echo -e "\t\e[1mBuilding binary from ELF\e[0m"
 	objcopy -I elf32-i386 -O binary $(BUILD_DIR)/os.elf $(BUILD_DIR)/os.bin
 
-check: $(BUILD_DIR)/os.bin
+$(BUILD_DIR)/kernel_size.check: $(BUILD_DIR)/os.bin ./check.sh | $(BUILD_DIR)
 	@echo -e "\t\e[1mChecking kernel size\e[0m"
-	$(eval ACTUAL_KERNEL_SIZE := $(shell wc -c < ./$(BUILD_DIR)/os.bin))
-	@echo -e "\t\e[1mKERNEL SIZE: $(ACTUAL_KERNEL_SIZE)\e[0m"
-	@if [ $(ACTUAL_KERNEL_SIZE) -le $$((KERNEL_SIZE_MAX * 1024)) ]; then\
-		@echo EXPECTED_KERNEL_SIZE: $(KERNEL_SIZE) kb;\
-		@echo ACTUAL_KERNEL_SIZE: $$((ACTUAL_KERNEL_SIZE / 1024)) kB;\
-		exit 127;\
-	else\
-		echo -e "\t\t\e[1mOK\e[0m";\
-	fi
+	@./check.sh $(BUILD_DIR) $(KERNEL_SIZE_MAX)
+	touch $@
 
-clean: clean-compile clean-assemble clean-link clean-bin clean-image
+# PHONY Tasks
+
+kill:
+	@kill $(shell ps | grep -P -o -m 1 "\d+(?=.*qemu)" | head -1) 2>/dev/null || true
+
+echo:
+	@echo ECHO: $(ASM_OBJECTS)
+
+compile: clean-compile $(C_OBJECTS)
+assemble: clean-assemble $(ASM_OBJECTS)
+link: clean-link $(BUILD_DIR)/os.elf
+bin: clean-bin $(BUILD_DIR)/os.bin
+check: $(BUILD_DIR)/kernel_size.check
+image: boot.img
+
+clean: clean-compile clean-assemble clean-link clean-bin clean-image clean-check
 	rm -rf $(BUILD_DIR)
-	mkdir $(BUILD_DIR)
 
 clean-compile:
 	rm -f $(C_OBJECTS)
@@ -114,13 +115,16 @@ clean-bin:
 clean-image:
 	rm -f *.img
 
+clean-check:
+	rm -f $(BUILD_DIR)/*.check
+
 test: boot.img
 	@echo -e "\t\e[1mRunning\e[0m"
 	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img
 
 debug: kill clean boot.img
 	@echo -e "\t\e[1mRunning debug\e[0m"
-	$(QEMU) $(QEMU_FLAGS) -drive if=floppy,index=0,format=raw,file=boot.img -s -S &
+	$(QEMU) $(QEMU_FLAGS) $(QEMU_BOOT_DEVICE) -s -S &
 	gdb
 
-.PHONY: all build clean test debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image
+.PHONY: all build clean test debug compile assemble link check kill clean-compile clean-assemble clean-link clean-bin clean-image clean-check

@@ -2,13 +2,16 @@
 
 extern kernel_entry
 extern __kernel_size_sectors
+extern universal_interrupt_handler
 global halt
+global collect_ctx
+global exp
 
 ; === BOOT DEVICE READ CONFIG ===
 
 CYLINDERS_LIMIT equ 79
 HEADS_LIMIT equ 1
-SECTORS_LIMIT equ 36
+SECTORS_PER_TRACK_LIMIT equ 36
 
 ; === CODE ===
 ; #region boot
@@ -16,128 +19,148 @@ SECTORS_LIMIT equ 36
 [BITS 16]
 
 ; stack setup
-main:
-xor cx, cx
-mov ds, cx
-mov ss, cx
-mov sp, 0x7C00
+entry:
+  xor cx, cx
+  mov ds, cx
+  mov ss, cx
+  mov sp, 0x7C00
 
-xor bx, bx
-mov ax, 0x7E0
-mov es, ax
+  xor bx, bx
+  mov ax, 0x7E0
+  mov es, ax
 
-mov al, 1
-; ch == 0
-mov cl, 2
-xor dh, dh  
+  mov al, 1
+  ; ch == 0
+  mov cl, 2
+  xor dh, dh  
 
-mov di, __kernel_size_sectors
+  mov di, __kernel_size_sectors
 
-; read (di - 1) consecutive sectors
+  ; read (di - 1) consecutive sectors
 
-.read:
-  ; ah = 0x2  - read sector form drive
-  ; al = 1    - sectors to read
-  ; ch = cylinder index [0, CYLINDERS_LIMIT]
-  ; cl = sector index [1, SECTORS_LIMIT]
-  ; dh - head index  [0, HEADS_LIMIT]
-  ; dl - drive number (passed by BIOS)
-  ; es:bx - buffer
+  .read:
+    ; ah = 0x2  - read sector form drive
+    ; al = 1    - sectors to read
+    ; ch = cylinder index [0, CYLINDERS_LIMIT]
+    ; cl = sector index [1, SECTORS_LIMIT]
+    ; dh - head index  [0, HEADS_LIMIT]
+    ; dl - drive number (passed by BIOS)
+    ; es:bx - buffer
 
-  dec di
-  jz .end_read_success
+    dec di
+    jz .end_read_success
 
-  mov ah, 2
-  int 0x13
-  jc read_error
+    mov ah, 2
+    int 0x13
+    jc read_error
 
-  mov si, es
-  add si, 0x20
-  mov es, si
+    mov si, es
+    add si, 0x20
+    mov es, si
 
-  inc cl
-  cmp cl, SECTORS_LIMIT
-  jbe .read
+    inc cl
+    cmp cl, SECTORS_PER_TRACK_LIMIT
+    jbe .read
 
-  mov cl, 1
-  ; inc dh
-  xor dh, 1
-  ; cmp dh, HEADS_LIMIT
-  jnz .read
+    mov cl, 1
+    xor dh, 1
+    jnz .read
 
-  ; xor dh, 1
-  inc ch
-  jmp .read
+    inc ch
+    jmp .read
 
-.end_read_success:
+  .end_read_success:
 
-  mov bp, succes_str
-  call print
+    mov bp, succes_str
+    call print
 
-.end_read:
+  .end_read:
 
 video_settings:
-; turn blinking bit off
-mov ax, 0x1003
-; bl == 0
-int 0x10
+  ; turn blinking bit off
+  mov ax, 0x1003
+  ; bl == 0
+  int 0x10
 
-; ; get current video mode
-; ; ah = number of character columns
-; ; bh = active page
-; mov ah, 0x0F
-; int 0x10
-
-; movzx di, ah
-
-; ; get cursor position
-; ; dh = row
-; ; dl = column
-; mov ah, 0x03
-; int 0x10
-
-; ; hide cursor
-; mov ah, 0x01
-; mov ch, 0x20
-; int 0x10
-
-; movzx si, dh
-
-; ; push on stack according to System V i386 ABI
-; sub sp, 4
-; push edx
-; push esi
-; push edi
-
-protected_mode_switch:
-lgdt [gdt_pseudodescriptor]
-cli
-cld
-mov eax, cr0
-or eax, 1
-mov cr0, eax
-jmp CODE:protected_mode_trampoline
+  protected_mode_switch:
+  lgdt [gdt_pseudodescriptor]
+  cli
+  cld
+  mov eax, cr0
+  or eax, 1
+  mov cr0, eax
+  jmp CODE_SEGMENT:protected_mode_trampoline_to_c
 
 
 [BITS 32]
-protected_mode_trampoline:
-mov eax, DATA
-mov ds, eax
-mov ss, eax
-mov es, eax
-mov fs, eax
-mov gs, eax
+protected_mode_trampoline_to_c:
+  mov eax, DATA_SEGMENT
+  mov ds, eax
+  mov ss, eax
+  mov es, eax
+  mov fs, eax
+  mov gs, eax
 
-; and sp, ~0xf
-sub sp, 4
+  ; return address imitation (sets stack to 0x7c00 - 4)
+  sub sp, 4
 
-jmp kernel_entry
+  jmp kernel_entry
+
 ; #endregion
 
+; #region utilities
 ; never ending loop
 halt:
   jmp $
 
+; interrupt context collection
+collect_ctx:
+  push ds
+  push es
+  push fs
+  push gs
+  pusha
+  mov ebx, esp
+  
+  cld
+  mov eax, DATA_SEGMENT
+  mov ds, eax
+  mov es, eax
+  mov fs, eax
+  mov gs, eax
+
+  ; stack alignment
+  sub esp, 4
+  and esp, ~0xf
+
+  mov DWORD [esp], ebx
+  call universal_interrupt_handler
+  jmp halt
+
+exp:
+  mov eax, 6
+  mov ecx, 5
+  mov edx, 4
+  mov ebx, 3
+  mov ebp, 2
+  mov esi, 1
+  mov edi, 0
+
+  int 0xff
+
+  ; div edi
+
+  ; sti
+
+  call halt
+
+memcpy:
+memmove:
+  
+
+; #endregion
+
+; #region 16-bit utilities
 
 [BITS 16]
 
@@ -198,6 +221,10 @@ read_error_str db "Failed to read sector. Halting", 0
 
 succes_str db "Success",0xD,0xA,0
 
+; #endregion
+
+; #region gdt
+
 ; 8 bytes alignment
 times 0x1E0-($-$$) db 0
 ; 24 bytes
@@ -205,7 +232,7 @@ gdt:
   .null_descriptor:
     dq 0xDEADBEEFDEADFACE ; NULL descriptor
 
-  CODE equ 8
+  CODE_SEGMENT equ 8
   .code_descriptor:
     ; limit low                         :16
     dw 0xFFFF
@@ -230,7 +257,7 @@ gdt:
     ; base high                         :8
     db 0x0   
 
-  DATA equ 16
+  DATA_SEGMENT equ 16
   .data_descriptor:
     ; limit low                         :16
     dw 0xFFFF
@@ -258,6 +285,8 @@ gdt:
 gdt_pseudodescriptor:
   dw 0x18 - 1
   dd gdt
+
+; #endregion
 
 times 510-($-$$) db 0
 dw 0xAA55

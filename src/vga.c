@@ -1,8 +1,9 @@
-#include <assert.h>
+#include "vga.h"
+
+#include "memmgnt.h"
+
 #include <limits.h>
-#include <memmgnt.h>
 #include <stdbool.h>
-#include <vga.h>
 
 static void write(const char c);
 static int parse_int(const char** const fmt);
@@ -13,17 +14,17 @@ static void write_rbuf(char* buf, size_t i, uint8_t flags, int width, char* pref
 static void write_str(const char* str, uint8_t flags, int width);
 
 static VGAChar* const VGA_TEXT_BASE = (VGAChar*) 0xB8000;
-static size_t page_columns = 80;
-static size_t page_rows = 25;
+static size_t page_columns          = 80;
+static size_t page_rows             = 25;
 
-static size_t row = 0;
+static size_t row    = 0;
 static size_t column = 0;
 
-void vga_init_printer(size_t rows, size_t columns) {
-  page_rows = rows;
+void vga_init_printer(const size_t rows, const size_t columns) {
+  page_rows    = rows;
   page_columns = columns;
-  row = 0;
-  column = 0;
+  row          = 0;
+  column       = 0;
   vga_clear_screen();
 }
 
@@ -31,7 +32,7 @@ void vga_clear_screen(void) {
   memzero(VGA_TEXT_BASE, page_rows * page_columns * sizeof(VGAChar));
 }
 
-void vga_print_char(VGAChar c, size_t x, size_t y) {
+void vga_print_char(const VGAChar c, const size_t x, const size_t y) {
   VGA_TEXT_BASE[page_columns * x + y] = c;
 }
 
@@ -78,21 +79,21 @@ static int parse_int(const char** const fmt) {
 }
 
 enum {
-  LEFT_FLAG = 0x1,
-  SIGN_FLAG = 0x2,
+  LEFT_FLAG  = 0x1,
+  SIGN_FLAG  = 0x2,
   SPACE_FLAG = 0x4,
-  TYPE_FLAG = 0x8,
-  ZERO_FLAG = 0x10,
+  TYPE_FLAG  = 0x8,
+  ZERO_FLAG  = 0x10,
 };
 
-static void write_int(int x, uint8_t flags, int width) {
+static void write_int(int x, const uint8_t flags, int width) {
   char buf[(CHAR_BIT * sizeof(int) + 2) / 3]; // more than enough
-  char prefix = 0;
+  char prefix  = 0;
   size_t buf_i = 0;
 
-  bool neg = (width < 0);
+  bool neg = (x < 0);
   if (neg) {
-    width = -width;
+    x      = -x;
     prefix = '-';
   } else {
     if (flags & SIGN_FLAG) {
@@ -106,7 +107,7 @@ static void write_int(int x, uint8_t flags, int width) {
     buf[buf_i++] = (char) (x % 10) + '0';
     x /= 10;
   } while (x);
-  size_t prefix_size = prefix ? (size_t) 1 : (size_t) 0;
+  const size_t prefix_size = prefix ? (size_t) 1 : (size_t) 0;
   if ((size_t) width >= prefix_size) {
     width -= (int) prefix_size;
   } else {
@@ -115,27 +116,26 @@ static void write_int(int x, uint8_t flags, int width) {
   write_rbuf(buf, buf_i, flags, width, &prefix, prefix_size);
 }
 
-static void write_hex(unsigned int x, uint8_t flags, int width) {
-  char buf[(sizeof(int) * CHAR_BIT + 3) / 4]; // more than enogh
+static void write_hex(unsigned int x, const uint8_t flags, int width) {
+  char buf[(sizeof(int) * CHAR_BIT + 3) / 4]; // more than enough
   char prefix[3];
   size_t pref_i = 0;
-  size_t buf_i = 0;
+  size_t buf_i  = 0;
 
-  char case_mask = (flags & 0x80) ? 0 : 0x20;
+  const char case_mask = (flags & 0x80) ? 0 : 0x20;
 
   if (flags & SIGN_FLAG) {
     prefix[pref_i++] = '+';
   }
   if ((flags & TYPE_FLAG) && x) {
-    prefix[pref_i++] = ('0');
-    prefix[pref_i++] = ('X' | case_mask);
+    prefix[pref_i++] = '0';
+    prefix[pref_i++] = 'X' | case_mask;
   }
 
-  char tmp_char;
   do {
-    tmp_char = (char) (x & 0xf);
-    tmp_char = (unsigned char) tmp_char > 9 ? (tmp_char + 'A' - (char) 10) | case_mask : tmp_char + '0';
-    buf[buf_i++] = tmp_char;
+    char tmp_char = (char) (x & 0xf);
+    tmp_char      = (unsigned char) tmp_char > 9 ? (tmp_char + 'A' - (char) 10) | case_mask : tmp_char + '0';
+    buf[buf_i++]  = tmp_char;
     x /= 16;
   } while (x);
 
@@ -157,19 +157,21 @@ static void write_rbuf(char* buf, size_t i, uint8_t flags, int width, char* pref
     write(prefix[j]);
   }
   if ((size_t) width <= i || (flags & LEFT_FLAG)) {
-    while (i--) {
-      write(buf[i]);
+    size_t k = i;
+    while (k--) {
+      write(buf[k]);
     }
-  }
-  if ((size_t) width > i) {
-    char c = flags & ZERO_FLAG ? '0' : ' ';
-    for (size_t j = 0; j < (size_t) width - i; j++) {
-      write(c);
+  } else {
+    if ((size_t) width > i) {
+      char c = flags & ZERO_FLAG ? '0' : ' ';
+      for (size_t j = 0; j < (size_t) width - i; j++) {
+        write(c);
+      }
     }
-  }
-  if (!(flags & LEFT_FLAG)) {
-    while (i--) {
-      write(buf[i]);
+    if (!(flags & LEFT_FLAG)) {
+      while (i--) {
+        write(buf[i]);
+      }
     }
   }
 }
@@ -197,7 +199,7 @@ void vga_vprintf(const char* fmt, va_list args) {
   char c;
 
   enum {
-    PARSING_NONE = false,
+    PARSING_NONE  = false,
     PARSING_FLAGS = true,
     PARSING_WIDTH,
     PARSING_PRECISION,
@@ -206,8 +208,8 @@ void vga_vprintf(const char* fmt, va_list args) {
   } parsing = false;
 
   // avl:3 '0':1 '#':1 ' ':1 '+':1 '-':1
-  uint8_t flags;
-  int width = 0;
+  uint8_t flags = 0;
+  int width     = 0;
   while ((c = *fmt)) {
     switch (parsing) {
       case PARSING_FLAGS:
@@ -281,8 +283,8 @@ void vga_vprintf(const char* fmt, va_list args) {
         if (c == '%') {
           if (*fmt != 'c') {
             parsing = true;
-            flags = 0;
-            // width = 0;
+            flags   = 0;
+            width   = 0;
             continue;
           }
           fmt++;

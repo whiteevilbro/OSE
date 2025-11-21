@@ -1,4 +1,14 @@
 BasedOnStyle: LLVM
+AlignConsecutiveBitFields:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossComments: true
+  AcrossEmptyLines: false
+AlignConsecutiveMacros:
+  Enabled: false
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: false
@@ -30,7 +40,7 @@ IndentExternBlock: Indent
 IndentGotoLabels: false
 IndentPPDirectives: BeforeHash
 IndentWidth: 2
-#InsertNewlineAtEOF: true
+InsertNewlineAtEOF: true
 KeepEmptyLinesAtTheStartOfBlocks: false
 Language: Cpp
 MaxEmptyLinesToKeep: 2

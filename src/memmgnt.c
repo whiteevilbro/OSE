@@ -2,7 +2,6 @@
 
 #include "assert.h"
 #include "interrupts.h"
-#include "utils.h"
 
 extern size_t __kernel_code_end;
 
@@ -44,7 +43,7 @@ size_t strlen(const char* str) {
 #define ARENA_COUNT 2
 
 static void* const ARENA_START[ARENA_COUNT] = {NULL, (void*) 0x100000};
-static void* const ARENA_END[ARENA_COUNT] = {(void*) 0x80000, (void*) 0x400000};
+static void* const ARENA_END[ARENA_COUNT]   = {(void*) 0x80000, (void*) 0x400000};
 
 static void* current[2] = {ARENA_START[0], ARENA_START[1]};
 

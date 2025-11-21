@@ -1,4 +1,6 @@
 *.img
 *.bin
 .vscode
+.cache
 build
+compile_commands.json

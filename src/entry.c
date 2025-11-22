@@ -1,4 +1,6 @@
 #include "acpi.h"
+#include "drivers/ps2/ps2_controller.h"
+#include "drivers/ps2/ps2_device_general.h"
 #include "experiments.h"
 #include "interrupts.h"
 #include "memmgnt.h"
@@ -17,9 +19,16 @@ void kernel_entry(const void* memsize) {
   init_acpi((void*) (((size_t) memsize) << 10));
 
   init_pic(AUTOMATIC_EOI);
-  init_timer(1000);
+  init_timer(40000);
   enable_io_devices(SYSTEM_TIMER);
   sti();
+
+  //todo make send_data resend data (commands too)
+  init_ps2_controller(); //todo logging inside there
+  ps2_reset_devices();
+  ps2_detect_devices();
+
+
   int8_t s    = -10;
   int32_t m   = 0;
   uint32_t mi = 0;

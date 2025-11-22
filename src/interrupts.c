@@ -2,7 +2,6 @@
 
 #include "assert.h"
 #include "ports.h"
-#include "utils.h"
 
 #include <stdbool.h>
 
@@ -16,30 +15,13 @@
 #pragma pack(push, 1)
 
 typedef struct {
-  uint16_t offset_low                       : 16;
-  uint16_t segment_selector                 : 16;
-  uint8_t reserved                          : 5;
-  uint8_t fixed1                            : 3;
-  GateDescriptorType type                   : 4;
-  uint8_t fixed2                            : 1;
-  PrivilegeLevel descriptor_privilege_level : 2;
-  uint8_t present                           : 1;
-  uint16_t offset_high                      : 16;
-} GateDescriptorS;
-
-typedef union {
-  GateDescriptorS repr;
-  uint64_t qword;
-} GateDescriptor;
-
-typedef struct {
   uint16_t limit;
   uint32_t base;
 } IDTPseudoDescriptor;
 
 #pragma pack(pop)
 
-static GateDescriptor* idt;
+GateDescriptor* idt;
 static InterruptHandler* handlerTable;
 
 extern void collect_ctx(void);

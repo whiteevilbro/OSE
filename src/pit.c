@@ -2,30 +2,19 @@
 
 #include "interrupts.h"
 
-#define add_32fp32(h1, l1, h2, l2)      \
-  __asm__ __volatile__("add %1, %3\n\t" \
-                       "adc %0, %2" : "+rm"(h1), "+rm"(l1) : "ri"(h2), "ri"(l2) : "cc")
-
 #define PIT_ACTUAL_FREQUENCY 3579545UL
 #define PIT_INTERNAL_DIVIDER 3UL
 
-static uint32_t millis_fractions = 0;
-volatile uint32_t millis         = 0;
+volatile uint32_t millis_fractions = 0;
+volatile uint32_t millis           = 0;
 
-static uint32_t interrupt_millis           = 0;
-static uint32_t interrupt_millis_fractions = 0;
-static uint32_t interrupt_frequency        = 0;
+uint32_t interrupt_millis           = 0;
+uint32_t interrupt_millis_fractions = 0;
+static uint32_t interrupt_frequency = 0;
 
 static uint32_t PIT_reload_value_channel0 = 0;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-
-static void timer_handler(const Context* const ctx) {
-  add_32fp32(millis, millis_fractions, interrupt_millis, interrupt_millis_fractions);
-}
-
-#pragma GCC diagnostic pop
+extern void timer_handler(const Context* const ctx);
 
 void init_timer(size_t frequency) {
   uint16_t reload_value;
@@ -40,7 +29,6 @@ void init_timer(size_t frequency) {
   init_timer_with_reload_value(reload_value);
 }
 
-// reload_value more than 250 is strongly not recommended
 void init_timer_with_reload_value(uint32_t reload_value) {
   if (reload_value == 1)
     reload_value++;
@@ -68,5 +56,8 @@ void init_timer_with_reload_value(uint32_t reload_value) {
 
   popfd();
 
-  set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, &timer_handler);
+  idt[SYSTEM_TIMER_VECTOR].repr.type        = INTERRUPT_GATE;
+  idt[SYSTEM_TIMER_VECTOR].repr.present     = 1;
+  idt[SYSTEM_TIMER_VECTOR].repr.offset_low  = (uint16_t) ((size_t) &timer_handler & 0xFFFF);
+  idt[SYSTEM_TIMER_VECTOR].repr.offset_high = (uint16_t) (((size_t) &timer_handler >> 16) & 0xFFFF);
 }

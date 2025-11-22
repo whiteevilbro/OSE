@@ -5,12 +5,12 @@
 
 #include <stdarg.h>
 
-#ifdef DEBUG
-  #define __stringify(x) #x
-  #define __stringify2(x) __stringify(x)
+#ifdef _DEBUG
+  #define str(x) #x
+  #define xstr(x) str(x)
 
   #define assert(COND) \
-    (COND) ? (void) (0) : kernel_panic(__FILE__ ":" __stringify2(__LINE__) " assertion (" #COND ") failed")
+    (COND) ? (void) (0) : kernel_panic(__FILE__ ":" xstr(__LINE__) " assertion (" #COND ") failed")
 #else
   #define assert(COND)
 #endif

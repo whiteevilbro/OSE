@@ -49,7 +49,12 @@ typedef union {
 #define pit_command(cmd) outb((PIT_COMMAND_PORT), (cmd))
 #define pit_send(ch, b) outb((ch), (b))
 
+#define add_32fp32(h1, l1, h2, l2)      \
+  __asm__ __volatile__("add %1, %3\n\t" \
+                       "adc %0, %2" : "+rm"(h1), "+rm"(l1) : "ri"(h2), "ri"(l2) : "cc")
+
 extern volatile uint32_t millis;
+extern volatile uint32_t millis_fractions;
 
 void init_timer(size_t frequency);
 void init_timer_with_reload_value(uint32_t reload_value);

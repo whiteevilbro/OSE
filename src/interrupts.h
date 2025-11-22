@@ -3,6 +3,7 @@
 
 #include "memmgnt.h"
 #include "ports.h"
+#include "utils.h"
 
 #include <stdint.h>
 
@@ -93,7 +94,29 @@ typedef enum {
   AUTOMATIC_EOI     = 1,
 } EOIType;
 
+#pragma pack(push, 1)
+
+typedef union {
+  struct {
+    uint16_t offset_low                       : 16;
+    uint16_t segment_selector                 : 16;
+    uint8_t reserved                          : 5;
+    uint8_t fixed1                            : 3;
+    GateDescriptorType type                   : 4;
+    uint8_t fixed2                            : 1;
+    PrivilegeLevel descriptor_privilege_level : 2;
+    uint8_t present                           : 1;
+    uint16_t offset_high                      : 16;
+  } repr;
+
+  uint64_t qword;
+} GateDescriptor;
+
+#pragma pack(pop)
+
 typedef void (*InterruptHandler)(const Context* const);
+
+extern GateDescriptor* idt;
 
 void init_interrupts(void);
 void set_interrupt_handler(uint8_t vector, GateDescriptorType type, InterruptHandler handler);

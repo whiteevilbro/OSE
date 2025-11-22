@@ -13,5 +13,6 @@ void init_immortal_allocator(void);
 void* malloc_immortal(size_t size, size_t alignment);
 void* calloc_immortal(size_t size, size_t alignment);
 size_t strlen(const char* str);
+int memcmp(const void* ptr1, const void* ptr2, size_t num);
 
 #endif

@@ -3,6 +3,9 @@
 #include "assert.h"
 #include "interrupts.h"
 
+#include <stddef.h>
+#include <stdint.h>
+
 extern size_t __kernel_code_end;
 
 void memmove(void* dest, const void* src, size_t count) {
@@ -19,7 +22,7 @@ void memmove(void* dest, const void* src, size_t count) {
 }
 
 // void memcpy(void* dest, const void* src, size_t count);
-void (*memcpy)(void*, const void*, size_t) = memmove;
+// void (*memcpy)(void*, const void*, size_t) = memmove;
 
 void memzero(void* dest, size_t count) {
   memset(dest, 0, count);
@@ -76,4 +79,14 @@ void* calloc_immortal(size_t size, size_t alignment) {
   void* result = malloc_immortal(size, alignment);
   memzero(result, size);
   return result;
+}
+
+int memcmp(const void* ptr1, const void* ptr2, size_t num) {
+  if (!num)
+    return 0;
+  const int8_t* p1 = ptr1;
+  const int8_t* p2 = ptr2;
+  while (num-- && *p1++ == *p2++) {
+  }
+  return (int) *--p1 - (int) *--p2;
 }

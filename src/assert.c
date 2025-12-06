@@ -1,13 +1,15 @@
 #include "assert.h"
 
+#include "console.h" // IWYU pragma: keep
 #include "interrupts.h"
-#include "vga.h"
 
 #include <stdarg.h>
 
 noret vkernel_panic(const char* fmt, va_list args) {
   cli();
-  vga_vprintf(fmt, args);
+  stdout = &fullscreen;
+  clear_console(stdout);
+  vprintf(fmt, args);
   halt();
   __builtin_unreachable();
 }

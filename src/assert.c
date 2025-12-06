@@ -7,6 +7,8 @@
 
 noret vkernel_panic(const char* fmt, va_list args) {
   cli();
+  stdout = &fullscreen;
+  clear_console(stdout);
   vprintf(fmt, args);
   halt();
   __builtin_unreachable();

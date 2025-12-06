@@ -6,7 +6,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 
-#define STDOUT_BUFFER_SIZE 2048
+#define STDOUT_BUFFER_SIZE 512
 
 typedef struct {
   VGA_color foreground : 4;
@@ -21,7 +21,7 @@ typedef struct {
   Point position;
   Point size;
   Point cursor;
-  const Format default_format;
+  Format default_format; // would be nice to have it const, but it needed to be written on creation;
   Format format;
 } Console;
 
@@ -31,6 +31,7 @@ extern Console fullscreen;
 extern Console* stdout;
 
 void init_consoles(void);
+void clear_console(Console* console);
 
 int cflush(Console* console);
 

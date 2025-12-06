@@ -1,4 +1,5 @@
 #include "acpi.h"
+#include "assert.h"
 #include "console.h"
 #include "drivers/ps2/ps2_controller.h"
 #include "drivers/ps2/ps2_device_general.h"
@@ -37,7 +38,7 @@ void kernel_entry(const void* memsize) {
       s++;
       m += s / 60;
       s %= 60;
-      printf("%02d:%02d\n", m, s);
+      printf("%02d:%02d\r", m, s);
     }
   }
 

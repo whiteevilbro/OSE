@@ -82,6 +82,11 @@ video_settings:
   ; bl == 0
   int 0x10
 
+  ; hide cursor
+  mov ah, 0x01
+  mov cx, 0x0706
+  int 0x10
+
 memory:
   int 0x12
   sub sp, 12,

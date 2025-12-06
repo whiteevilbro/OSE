@@ -22,12 +22,22 @@ void init_consoles(void) {
 
   vga_init_printer(24, 80);
   fullscreen.position = (Point) {.x = 0, .y = 0};
-  fullscreen.size     = (Point) {.x = 40, .y = 12};
+  fullscreen.size     = (Point) {.x = 80, .y = 24};
 
   fullscreen.cursor = (Point) {.x = 0, .y = 0};
   fullscreen.format = fullscreen.default_format;
 
   stdout = &fullscreen;
+  clear_console(stdout);
+}
+
+void clear_console(Console* console) {
+  vga_fill(console->position, console->size,
+           (VGAChar) {.repr = {.character = ' ',
+                               .fgcolor   = console->format.foreground,
+                               .bgcolor   = console->format.background}});
+  console->cursor = (Point) {0, 0};
+  vga_flush();
 }
 
 static char* bound_string_putchar(char* string, char* const end, char c) {

@@ -60,7 +60,7 @@ void vga_copy(const Point dest, const Point src, const Point size) {
 void vga_fill(const Point dest, const Point size, VGAChar character) {
   VGAChar* dest_p = vga_buffer + dest.y * page_columns + dest.x;
   for (size_t i = 0; i < size.y; i++) {
-    for (size_t j = 0; j < size.y; j++) {
+    for (size_t j = 0; j < size.x; j++) {
       dest_p[i * page_columns + j] = character;
     }
   }

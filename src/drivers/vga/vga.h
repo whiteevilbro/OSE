@@ -37,12 +37,21 @@ typedef union {
   uint16_t attrchar;
 } VGAChar;
 
+typedef struct {
+  size_t x;
+  size_t y;
+} Point;
+
 #pragma pack(pop)
 
-void vga_print_char(VGAChar c, size_t x, size_t y);
-void vga_vprintf(const char* fmt, va_list args);
-void vga_printf(const char* fmt, ...);
+extern size_t page_columns;
+extern size_t page_rows;
+
+void vga_init_printer(const size_t rows, const size_t columns);
+void vga_flush(void);
 void vga_clear_screen(void);
-void vga_init_printer(size_t rows, size_t columns);
+void vga_print_char(VGAChar c, size_t x, size_t y);
+void vga_copy(const Point dest, const Point src, const Point size);
+void vga_fill(const Point dest, const Point size, VGAChar character);
 
 #endif

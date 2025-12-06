@@ -200,7 +200,7 @@ void ps2_detect_devices(void) {
       PS2DeviceID id = ps2_read_device_id();
 
       devices[0] = id;
-      INFO("PS2 channel 0: Device detected - %s\n", get_device_name(id));
+      INFO("PS/2 channel 0: Device detected - %s\n", get_device_name(id));
       break;
     }
   }
@@ -221,7 +221,7 @@ void ps2_detect_devices(void) {
       PS2DeviceID id = ps2_read_device_id();
 
       devices[1] = id;
-      INFO("PS2 channel 1: Device detected - %s\n", get_device_name(id));
+      INFO("PS/2 channel 1: Device detected - %s\n", get_device_name(id));
       break;
     }
   }

@@ -19,9 +19,9 @@ NASM = nasm
 NASM_FLAGS = -felf32 -g
 
 GCC = gcc
-MAIN_FLAGS = -std=c99 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -masm=intel
+MAIN_FLAGS = -xc -std=c99 -m32 -ffreestanding -no-pie -fno-pie -mno-sse -fno-stack-protector -masm=intel
 WARNINGS_FLAGS = -Wall -Wextra -Wpedantic -Wduplicated-branches -Wduplicated-cond -Wcast-qual -Wconversion -Wsign-conversion -Wlogical-op -Wno-implicit-fallthrough
-DEBUG_FLAGS = -O0 -g3 -DDEBUG
+DEBUG_FLAGS = -O0 -g3 -D_DEBUG
 RELEASE_FLAGS = -O2 -Werror
 GCC_FLAGS = $(MAIN_FLAGS) $(WARNINGS_FLAGS)
 
@@ -49,7 +49,7 @@ QEMU_FLAGS = -cpu pentium2 -m 1g -monitor stdio -device VGA -no-shutdown -no-reb
 QEMU_BOOT_DEVICE = -drive if=floppy,index=0,format=raw,file=boot.img
 
 # maximum kernel size in kB
-KERNEL_SIZE_MAX = 20
+KERNEL_SIZE_MAX = 30
 
 # =============================================================================
 # Tasks
@@ -75,7 +75,7 @@ $(ASM_OBJECTS): $(ASM_SOURCES) | $(BUILD_DIR)/
 $(BUILD_DIR)/os.elf: $(ASM_OBJECTS) $(C_OBJECTS) $(LINKER_SCRIPT) | $(BUILD_DIR)/
 	@echo -e "\t\e[1mLinking\e[0m"
 	@$(GCC) $(BUILD_DIR)/boot.o -E -P -DBUILD_DIR=$(BUILD_DIR) -x c $(LINKER_SCRIPT) > $(BUILD_DIR)/$(LINKER_SCRIPT) 2>$(NULL)
-	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(BUILD_DIR)/boot.o $(C_OBJECTS) -o $(BUILD_DIR)/os.elf
+	$(LD) $(LD_FLAGS) -T $(BUILD_DIR)/$(LINKER_SCRIPT) $(ASM_OBJECTS) $(C_OBJECTS) -o $(BUILD_DIR)/os.elf
 
 $(BUILD_DIR)/os.bin: $(BUILD_DIR)/os.elf | $(BUILD_DIR)/
 	@echo -e "\t\e[1mBuilding binary from ELF\e[0m"

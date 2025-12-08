@@ -51,6 +51,7 @@ void vga_init_printer(const size_t rows, const size_t columns);
 void vga_flush(void);
 void vga_clear_screen(void);
 void vga_print_char(VGAChar c, size_t x, size_t y);
+VGAChar vga_get_char(const size_t x, const size_t y);
 void vga_copy(const Point dest, const Point src, const Point size);
 void vga_fill(const Point dest, const Point size, VGAChar character);
 

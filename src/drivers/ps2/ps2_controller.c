@@ -1,6 +1,7 @@
 #include "ps2_controller.h"
 
 #include "acpi.h"
+#include "interrupts.h"
 #include "ports.h"
 
 #include <stddef.h>
@@ -110,4 +111,16 @@ void init_ps2_controller(void) {
     ps2_send_command(CHANNEL1_TEST);
     ps2_status.channel1 = (PS2ChannelStatus) ps2_read_data();
   }
+
+  disable_io_devices(KEYBOARD);
+  disable_io_devices(MOUSE);
+
+  ps2_send_command(READ_COMMAND_BYTE);
+  cmd.byte = ps2_read_data();
+
+  cmd.repr.channel0_input_buffer_full_interrupt = true;
+  cmd.repr.channel1_input_buffer_full_interrupt = true;
+
+  ps2_send_command(WRITE_COMMAND_BYTE);
+  ps2_send_data(cmd.byte);
 }

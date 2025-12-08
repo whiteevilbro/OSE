@@ -603,16 +603,24 @@ static const char* process_escape_sequence(const char* string, Console* console)
   return pos;
 }
 
-static void cwrite(int character, Console* console) {
+static inline void inplace_cwrite(int character, Console* console) {
   vga_print_char((VGAChar) {.repr = {
                                 .character = (char) character,
                                 .fgcolor   = console->format.foreground,
                                 .bgcolor   = console->format.background}},
-                 console->position.x + console->cursor.x++, console->position.y + console->cursor.y);
-  if (console->cursor.x / console->size.x) {
+                 console->position.x + console->cursor.x, console->position.y + console->cursor.y);
+}
+
+static void cwrite(int character, Console* console) {
+  inplace_cwrite(character, console);
+  if (++console->cursor.x / console->size.x) {
     console->cursor.y++;
     console->cursor.x = 0;
   }
+}
+
+static inline char cget_char(Console* console) {
+  return vga_get_char(console->position.x + console->cursor.x, console->position.y + console->cursor.y).repr.character;
 }
 
 static void cscroll(Console* console) {
@@ -646,6 +654,22 @@ int cflush(Console* console) {
           cscroll(console);
       case '\r':
         console->cursor.x = 0;
+        break;
+      case '\b':
+        if (console->cursor.x) {
+          console->cursor.x--;
+        } else {
+          console->cursor.x = console->size.x - 1;
+          if (console->cursor.y)
+            console->cursor.y--;
+          while (cget_char(console) == ' ' && console->cursor.x) {
+            console->cursor.x--;
+            c = 0;
+          }
+          if (!c)
+            console->cursor.x++;
+        }
+        inplace_cwrite(' ', console);
         break;
       case ESC: //todo
         pos = process_escape_sequence(++pos, console);

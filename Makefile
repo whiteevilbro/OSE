@@ -49,7 +49,7 @@ QEMU_FLAGS = -cpu pentium2 -m 1g -monitor stdio -device VGA -no-shutdown -no-reb
 QEMU_BOOT_DEVICE = -drive if=floppy,index=0,format=raw,file=boot.img
 
 # maximum kernel size in kB
-KERNEL_SIZE_MAX = 20
+KERNEL_SIZE_MAX = 30
 
 # =============================================================================
 # Tasks

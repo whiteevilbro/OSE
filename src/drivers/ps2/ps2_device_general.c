@@ -13,15 +13,10 @@
 #define RESET_RETRY_COUNT 3
 #define DETECT_RETRY_COUNT 3
 
+#define COMMAND_QUEUE_SIZE 32
+
 #define str(x) #x
 #define xstr(x) str(x)
-
-typedef enum {
-  ACK = 0xFA,
-  RSD = 0xFE,
-  ERR = 0xFC,
-  BAT = 0xAA,
-} PS2ToHostCommand;
 
 typedef enum {
   RESET        = 0xFF,
@@ -38,9 +33,15 @@ typedef enum {
   COMMUNICATION_FAILED,
 } PS2DeviceState;
 
+static uint8_t channel0_command_buffer[COMMAND_QUEUE_SIZE];
+static uint8_t channel1_command_buffer[COMMAND_QUEUE_SIZE];
+
 PS2DeviceID devices[2] = {NOTHING, NOTHING};
 
-static uint8_t ps2_device_send(uint8_t data) {
+CommandQueue command_queues[2] = {{channel0_command_buffer, 0, 0, COMMAND_QUEUE_SIZE},
+                                  {channel1_command_buffer, 0, 0, COMMAND_QUEUE_SIZE}};
+
+uint8_t ps2_device_send(uint8_t data) {
   uint32_t ms  = millis;
   uint32_t msf = millis_fractions;
   add_32fp32(ms, msf, TIMEOUT_MS, TIMEOUT_MSF);
@@ -55,7 +56,7 @@ static uint8_t ps2_device_send(uint8_t data) {
   return 1;
 }
 
-static uint16_t ps2_device_read(void) {
+uint16_t ps2_device_read(void) {
   uint32_t ms  = millis;
   uint32_t msf = millis_fractions;
   add_32fp32(ms, msf, TIMEOUT_MS, TIMEOUT_MSF);
@@ -86,55 +87,64 @@ static inline const char* get_error_reason(PS2DeviceState status) {
   }
 }
 
-void ps2_reset_devices(void) {
+static void ps2_reset_device(uint8_t channel) {
   PS2DeviceState status;
   uint16_t answer;
 
-  for (uint8_t ch = 0; ch < 2; ch++) {
-    if ((ps2_status.channel0 == CHANNEL_OK && ch == 0) || (ps2_status.channel1 == CHANNEL_OK && ch == 1)) {
-      for (size_t tr = 1; tr <= RESET_RETRY_COUNT; tr++) {
-        DEBUG("Trying to reset PS/2 channel %d. Try %d out of " xstr(RESET_RETRY_COUNT) "\n", ch, tr);
-        if (ch) {
-          ps2_send_command(WRITE_CHANNEL1_DEVICE);
-        }
-        if (ps2_device_send(RESET)) {
-          DEBUG("PS/2 channel %d: Controller busy.\n", ch);
-          status = COMMUNICATION_FAILED;
-          continue;
-        }
-
-
-        if ((answer = ps2_device_read()) & 0xff00) {
-          DEBUG("PS/2 channel %d: Device timed out.\n", ch);
-          status = TIMED_OUT;
-          continue;
-        }
-        if (answer != ACK) {
-          DEBUG("PS/2 channel %d: non-ACK code recieved (%02X).\n", ch, answer);
-          status = BAD_ACKNOWLEDGEMENT;
-          continue;
-        }
-
-        if ((answer = ps2_device_read()) & 0xff00) {
-          DEBUG("PS/2 channel %d: Device timed out.\n", ch);
-          status = TIMED_OUT;
-          continue;
-        }
-        if (answer != BAT) {
-          DEBUG("PS/2 channel %d: BAT failed. Code received: (%02X).\n", ch, answer);
-          status = BAT_FAILED;
-          continue;
-        }
-
-        status = DEVICE_OK;
-        break;
-      }
-      if (status) {
-        ERROR("PS/2 channel %d: Retry count exceeded: %s. Aborting communication.\n", ch, get_error_reason(status));
-      } else {
-        INFO("PS/2 channel %d: device reset\n", ch);
-      }
+  if ((ps2_status.channel0 == CHANNEL_OK && channel == 0) || (ps2_status.channel1 == CHANNEL_OK && channel == 1)) {
+    if (channel) {
+      ps2_send_command(ENABLE_CHANNEL1);
+    } else {
+      ps2_send_command(ENABLE_CHANNEL0);
     }
+    for (size_t tr = 1; tr <= RESET_RETRY_COUNT; tr++) {
+      DEBUG("Trying to reset PS/2 channel %d. Try %d out of " xstr(RESET_RETRY_COUNT) "\n", channel, tr);
+      if (channel) {
+        ps2_send_command(WRITE_CHANNEL1_DEVICE);
+      }
+      if (ps2_device_send(RESET)) {
+        DEBUG("PS/2 channel %d: Controller busy.\n", channel);
+        status = COMMUNICATION_FAILED;
+        continue;
+      }
+
+
+      if ((answer = ps2_device_read()) & 0xff00) {
+        DEBUG("PS/2 channel %d: Device timed out.\n", channel);
+        status = TIMED_OUT;
+        continue;
+      }
+      if (answer != ACK) {
+        DEBUG("PS/2 channel %d: non-ACK code recieved (%02X).\n", channel, answer);
+        status = BAD_ACKNOWLEDGEMENT;
+        continue;
+      }
+
+      if ((answer = ps2_device_read()) & 0xff00) {
+        DEBUG("PS/2 channel %d: Device timed out.\n", channel);
+        status = TIMED_OUT;
+        continue;
+      }
+      if (answer != BAT) {
+        DEBUG("PS/2 channel %d: BAT failed. Code received: (%02X).\n", channel, answer);
+        status = BAT_FAILED;
+        continue;
+      }
+
+      status = DEVICE_OK;
+      break;
+    }
+    if (status) {
+      ERROR("PS/2 channel %d: Retry count exceeded: %s. Aborting communication.\n", channel, get_error_reason(status));
+    } else {
+      INFO("PS/2 channel %d: device reset\n", channel);
+    }
+  }
+}
+
+void ps2_reset_devices(void) {
+  for (uint8_t ch = 0; ch < 2; ch++) {
+    ps2_reset_device(ch);
   }
 }
 
@@ -225,4 +235,28 @@ void ps2_detect_devices(void) {
       break;
     }
   }
+}
+
+// if it overflows - stop. Whatever you doing - stop it.
+void ps2_device_enqueue_command(uint8_t channel, uint8_t cmd) {
+  command_queues[channel].buffer[command_queues[channel].tail++] = cmd;
+  command_queues[channel].tail %= command_queues[channel].size;
+}
+
+void ps2_device_send_topqueue(uint8_t channel) {
+  if (command_queues[channel].head == command_queues[channel].tail)
+    return;
+
+  if (channel) {
+    ps2_send_command(WRITE_CHANNEL1_DEVICE);
+  }
+  ps2_device_send(command_queues[channel].buffer[command_queues[channel].head]);
+}
+
+uint8_t ps2_device_queue_top(uint8_t channel) {
+  return command_queues[channel].buffer[command_queues[channel].head];
+}
+
+void ps2_device_queue_pop(uint8_t channel) {
+  command_queues[channel].head = (command_queues[channel].head + 1) % command_queues[channel].size;
 }

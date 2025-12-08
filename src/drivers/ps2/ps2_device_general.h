@@ -1,6 +1,11 @@
 #ifndef PS2_DEVICES_H_
 #define PS2_DEVICES_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
+#define COMMAND_RESEND_THRESHOLD 3
+
 typedef enum {
   NOTHING = 0x20000,
 
@@ -24,9 +29,33 @@ typedef enum {
   JAP_A = 0x92AB,
 } PS2DeviceID;
 
+typedef enum {
+  ACK = 0xFA,
+  RSD = 0xFE,
+  ERR = 0xFC,
+  BAT = 0xAA,
+} PS2ToHostCommand;
+
+typedef struct {
+  uint8_t* buffer;
+  size_t head;
+  size_t tail;
+  size_t size;
+} CommandQueue;
+
 extern PS2DeviceID devices[2];
+
+// extern CommandQueue command_queues[2];
 
 void ps2_reset_devices(void);
 void ps2_detect_devices(void);
+
+uint8_t ps2_device_send(uint8_t data);
+uint16_t ps2_device_read(void);
+
+void ps2_device_enqueue_command(uint8_t channel, uint8_t cmd);
+void ps2_device_send_topqueue(uint8_t channel);
+uint8_t ps2_device_queue_top(uint8_t channel);
+void ps2_device_queue_pop(uint8_t channel);
 
 #endif

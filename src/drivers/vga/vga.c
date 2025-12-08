@@ -22,9 +22,10 @@ void vga_init_printer(const size_t rows, const size_t columns) {
 }
 
 void vga_flush(void) {
-  if (!buffer_sync)
+  if (!buffer_sync) {
     memmove(VGA_TEXT_BASE, vga_buffer, page_rows * page_columns * (sizeof(VGAChar)));
-  buffer_sync = true;
+    buffer_sync = true;
+  }
 }
 
 void vga_clear_screen(void) {
@@ -34,9 +35,14 @@ void vga_clear_screen(void) {
 }
 
 void vga_print_char(const VGAChar c, const size_t x, const size_t y) {
-  buffer_sync = false;
+  // buffer_sync = false;
 
-  vga_buffer[page_columns * y + x] = c;
+  vga_buffer[page_columns * y + x]    = c;
+  VGA_TEXT_BASE[page_columns * y + x] = c;
+}
+
+VGAChar vga_get_char(const size_t x, const size_t y) {
+  return VGA_TEXT_BASE[page_columns * y + x];
 }
 
 void vga_copy(const Point dest, const Point src, const Point size) {

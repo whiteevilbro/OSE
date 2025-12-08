@@ -14,7 +14,7 @@ static uint32_t interrupt_frequency = 0;
 
 static uint32_t PIT_reload_value_channel0 = 0;
 
-extern void timer_handler(const Context* const ctx);
+extern void timer_handler(void);
 
 void init_timer(size_t frequency) {
   uint16_t reload_value;
@@ -56,8 +56,5 @@ void init_timer_with_reload_value(uint32_t reload_value) {
 
   popfd();
 
-  idt[SYSTEM_TIMER_VECTOR].repr.type        = INTERRUPT_GATE;
-  idt[SYSTEM_TIMER_VECTOR].repr.present     = 1;
-  idt[SYSTEM_TIMER_VECTOR].repr.offset_low  = (uint16_t) ((size_t) &timer_handler & 0xFFFF);
-  idt[SYSTEM_TIMER_VECTOR].repr.offset_high = (uint16_t) (((size_t) &timer_handler >> 16) & 0xFFFF);
+  direct_set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, timer_handler);
 }

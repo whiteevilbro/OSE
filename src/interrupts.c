@@ -2,6 +2,7 @@
 
 #include "assert.h"
 #include "ports.h"
+#include "utils.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -24,6 +25,7 @@ typedef struct {
 
 GateDescriptor* idt;
 static InterruptHandler* handlerTable;
+static uint8_t* trampolines;
 
 extern void collect_ctx(void);
 
@@ -84,9 +86,9 @@ static bool has_error_code(uint8_t vector) {
 }
 
 static void* generate_trampolines(void) {
-  uint8_t* trampolines = malloc_immortal(TRAMPOLINE_COUNT * TRAMPOLINE_SIZE, 8);
-  uint8_t* trampoline  = trampolines;
-  uint8_t f            = 0;
+  trampolines         = malloc_immortal(TRAMPOLINE_COUNT * TRAMPOLINE_SIZE, 8);
+  uint8_t* trampoline = trampolines;
+  uint8_t f           = 0;
   for (size_t vector = 0; vector < TRAMPOLINE_COUNT; vector++) {
     if (!(f = has_error_code((uint8_t) vector)))
       *trampoline++ = 0x0E;           // push cs
@@ -108,10 +110,10 @@ static void* generate_trampolines(void) {
 static void write_descriptor(GateDescriptor* const desc,
                              const void* const trampoline,
                              GateDescriptorType type, bool present) {
-  *desc = (GateDescriptor) {
+  *desc = (GateDescriptor){
       .repr = {
           .offset_low                 = (uint16_t) ((size_t) trampoline & 0xFFFF),
-          .segment_selector           = (uint16_t) CODE_SEGMENT,
+          .segment_selector           = (uint16_t) KERNEL_CODE_SEGMENT,
           .type                       = type,
           .descriptor_privilege_level = KERNEL_PL,
           .present                    = present,
@@ -130,7 +132,7 @@ void init_interrupts(void) {
 }
 
 static void generate_idt(void) {
-  void* trampolines = generate_trampolines();
+  generate_trampolines();
 
   idt = malloc_immortal(sizeof(GateDescriptor) * VECTOR_COUNT, 8);
   for (size_t i = 0; i < VECTOR_COUNT; i++) {
@@ -152,18 +154,21 @@ static inline void init_exceptions(void) {
   }
 }
 
-void set_interrupt_handler(uint8_t vector, GateDescriptorType type,
+void set_interrupt_handler(uint8_t vector, GateDescriptorType type, PrivilegeLevel dpl,
                            InterruptHandler handler) {
-  handlerTable[vector]     = handler;
-  idt[vector].repr.type    = type;
-  idt[vector].repr.present = 1;
+  handlerTable[vector] = handler;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpedantic"
+  direct_set_interrupt_handler(vector, type, dpl, (void (*)(void))(trampolines + vector * TRAMPOLINE_SIZE));
+#pragma GCC diagnostic pop
 }
 
-void direct_set_interrupt_handler(uint8_t vector, GateDescriptorType type, void (*handler)(void)) {
-  idt[vector].repr.type        = type;
-  idt[vector].repr.offset_low  = (uint16_t) ((size_t) handler & 0xFFFF);
-  idt[vector].repr.offset_high = (uint16_t) (((size_t) handler >> 16) & 0xFFFF);
-  idt[vector].repr.present     = 1;
+void direct_set_interrupt_handler(uint8_t vector, GateDescriptorType type, PrivilegeLevel dpl, void (*handler)(void)) {
+  idt[vector].repr.type                       = type;
+  idt[vector].repr.descriptor_privilege_level = dpl;
+  idt[vector].repr.offset_low                 = (uint16_t) ((size_t) handler & 0xFFFF);
+  idt[vector].repr.offset_high                = (uint16_t) (((size_t) handler >> 16) & 0xFFFF);
+  idt[vector].repr.present                    = 1;
 }
 
 // ========= 8259 IO =========

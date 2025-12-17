@@ -3,7 +3,12 @@
 
 #define noret void __attribute__((__noreturn__))
 
+extern void* gdt;
+extern void* tss;
+
 extern noret halt(void);
+
+extern noret jump_to_userspace(void (*func)(void), void* stack);
 
 typedef enum {
   RING_0    = 0x0,
@@ -15,8 +20,11 @@ typedef enum {
 } PrivilegeLevel;
 
 typedef enum {
-  CODE_SEGMENT = 0x8,
-  DATA_SEGMENT = 0x10,
+  KERNEL_CODE_SEGMENT = 0x8,
+  KERNEL_DATA_SEGMENT = 0x10,
+  APP_CODE_SEGMENT    = 0x18,
+  APP_DATA_SEGMENT    = 0x20,
+  TSS_SEGMENT         = 0x28,
 } Segment;
 
 #endif

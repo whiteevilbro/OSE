@@ -3,6 +3,6 @@
 
 extern void exp(void);
 
-void experiment(void);
+void (*experiment(int n))(void);
 
 #endif

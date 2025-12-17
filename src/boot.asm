@@ -5,13 +5,20 @@ extern __kernel_size_sectors
 extern universal_interrupt_handler
 global halt
 global collect_ctx
+global jump_to_userspace
 global exp
+global tss
+global gdt
 
 ; === BOOT DEVICE READ CONFIG ===
 
 CYLINDERS_LIMIT equ 79
 HEADS_LIMIT equ 1
 SECTORS_PER_TRACK_LIMIT equ 36
+
+; === OTHER CONFIG ===
+
+KERNEL_STACK equ 0x7C00
 
 ; === CODE ===
 ; #region boot
@@ -23,7 +30,7 @@ entry:
   xor cx, cx
   mov ds, cx
   mov ss, cx
-  mov sp, 0x7C00
+  mov sp, KERNEL_STACK
 
   xor bx, bx
   mov ax, 0x7E0
@@ -100,12 +107,15 @@ protected_mode_switch:
   mov eax, cr0
   or eax, 1
   mov cr0, eax
-  jmp CODE_SEGMENT:protected_mode_trampoline_to_c
+  jmp KERNEL_CODE_SEGMENT:protected_mode_trampoline_to_c
 
 
 [BITS 32]
 protected_mode_trampoline_to_c:
-  mov eax, DATA_SEGMENT
+  mov ax, TSS_SEGMENT
+  ltr ax
+
+  mov eax, KERNEL_DATA_SEGMENT
   mov ds, eax
   mov ss, eax
   mov es, eax
@@ -134,7 +144,7 @@ collect_ctx:
   mov ebx, esp
   
   cld
-  mov eax, DATA_SEGMENT
+  mov eax, KERNEL_DATA_SEGMENT
   mov ds, eax
   mov es, eax
   mov fs, eax
@@ -156,12 +166,32 @@ collect_ctx:
   add esp, 8
   iret
 
+extern globali
 exp:
-  call NEAR halt
+  mov eax, [globali]
+  int 0x30
+  inc DWORD [globali]
+  jmp exp
 
-memcpy:
-memmove:
-  ; todo
+; no need to respect ABI, we jump away with later stack overwrite anyway
+jump_to_userspace:
+  mov eax, APP_DATA_SEGMENT
+  mov ds, eax
+  mov es, eax
+  mov fs, eax
+  mov gs, eax
+
+  mov ebx, [esp + 4]
+  mov ecx, [esp + 8]
+  push WORD 0
+  push WORD APP_DATA_SEGMENT
+  push DWORD ecx
+  push DWORD 0x0202 ; eflags: [ IF ] + reserved 0b10 bit
+  push WORD 0
+  push WORD APP_CODE_SEGMENT
+  push DWORD ebx
+  iret
+  
 
 ; #endregion
 
@@ -228,17 +258,68 @@ succes_str db "Success",0xD,0xA,0
 
 ; #endregion
 
+times 0x15C-($-$$) db 0
+tss:
+  .previous_task_link: dw 0
+  ._reserved0: dw 0
+
+  .esp0: dd KERNEL_STACK
+  .ss0: dw KERNEL_DATA_SEGMENT
+  ._reserved1: dw 0
+
+  .esp1: dd 0
+  .ss1: dw 0
+  ._reserved2: dw 0
+  
+  .esp2: dd 0
+  .ss2: dw 0
+  ._reserved3: dw 0
+
+  .cr3: dd 0
+  .eip: dd 0
+  .eflags: dd 0
+  .eax: dd 0
+  .ecx: dd 0
+  .edx: dd 0
+  .ebx: dd 0
+  .esp: dd 0
+  .ebp: dd 0
+  .esi: dd 0
+  .edi: dd 0
+
+  .es: dw 0
+  ._reserved4: dw 0
+  .cs: dw 0
+  ._reserved5: dw 0
+  .ss: dw 0
+  ._reserved6: dw 0
+  .ds: dw 0
+  ._reserved7: dw 0
+  .fs: dw 0
+  ._reserved8: dw 0
+  .gs: dw 0
+  ._reserved9: dw 0
+
+  .ldt_segment_selector: dw 0
+  ._reserved10: dw 0
+
+  .t_reserved: db 1
+  ._reserved11: db 0
+  .io_map_base_address: dw 108 + 32 ; tss size + interrupt redirection bit map size
+
+  .ssp: dd 0
+
 ; #region gdt
 
 ; 8 bytes alignment
-times 0x1E0-($-$$) db 0
-; 24 bytes
+times 0x1C8-($-$$) db 0
+; 48 bytes
 gdt:
   .null_descriptor:
     dq 0xDEADBEEFDEADFACE ; NULL descriptor
 
-  CODE_SEGMENT equ 8
-  .code_descriptor:
+  KERNEL_CODE_SEGMENT equ 8
+  .kernel_code_descriptor:
     ; limit low                         :16
     dw 0xFFFF
     ; base low                          :24
@@ -262,8 +343,8 @@ gdt:
     ; base high                         :8
     db 0x0   
 
-  DATA_SEGMENT equ 16
-  .data_descriptor:
+  KERNEL_DATA_SEGMENT equ 16
+  .kernel_data_descriptor:
     ; limit low                         :16
     dw 0xFFFF
     ; base low                          :24
@@ -284,11 +365,84 @@ gdt:
     ; limit high                        :4
     db 0b_1_1_0_0_1111
 
-    ; base high                     :8
+    ; base high                         :8
     db 0x0  
 
+  APP_CODE_SEGMENT equ 24 | 3
+  .app_code_descriptor:
+    ; limit low                         :16
+    dw 0xFFFF
+    ; base low                          :24
+    db 0x0, 0x0, 0x0
+    ; present flag                  P   :1
+    ; descriptor privilege level    DPL :2
+    ; descriptor type flag          S   :1
+    ; executalbe flag               E   :1
+    ; conforming flag               DC  :1
+    ; read-enable flag              RW  :1
+    ; accessed flag (CPU feedback)  A   :1
+    db 0b_1_11_1_1_0_1_0
+
+    ; granularity flag              G   :1
+    ; D flag, 16-bit heresy         DB  :1
+    ; L flag (for IA-32e)           L   :1
+    ; AVAILABLE                         :1
+    ; limit high                        :4
+    db 0b_1_1_0_0_1111
+
+    ; base high                         :8
+    db 0x0  
+
+  APP_DATA_SEGMENT equ 32 | 3
+  .app_data_descriptor:
+    ; limit low                         :16
+    dw 0xFFFF
+    ; base low                          :24
+    db 0x0, 0x0, 0x0
+    ; present flag                  P   :1
+    ; descriptor privilege level    DPL :2
+    ; descriptor type flag          S   :1
+    ; executalbe flag               E   :1
+    ; direction flag, heresy        DC  :1
+    ; write-enable flag             RW  :1
+    ; accessed flag (CPU feedback)  A   :1
+    db 0b_1_11_1_0_0_1_0
+
+    ; granularity flag              G   :1
+    ; D flag, 16-bit heresy         DB  :1
+    ; L flag (for IA-32e)           L   :1
+    ; AVAILABLE                         :1
+    ; limit high                        :4
+    db 0b_1_1_0_0_1111
+
+    ; base high                         :8
+    db 0x0  
+
+  TSS_SEGMENT equ 40
+  .tss_descriptor:
+    ; limit low                         :16
+    dw 0x006C - 1
+    ; base low                          :24
+    dw tss
+    db 0x0
+    ; present flag                  P   :1
+    ; descriptor privilege level    DPL :2
+    ; descriptor type flag          S   :1
+    ; type                              :4
+    db 0b_1_00_0_1001
+
+    ; granularity flag              G   :1
+    ; D flag, 16-bit heresy         DB  :1
+    ; L flag (for IA-32e)           L   :1
+    ; AVAILABLE                         :1
+    ; limit high                        :4
+    db 0b_0_0_0_0_0000 ;! test DB flag set
+
+    ; base high                         :8
+    db 0x0
+
 gdt_pseudodescriptor:
-  dw 0x18 - 1
+  dw 0x30 - 1
   dd gdt
 
 ; #endregion

@@ -50,11 +50,11 @@ void init_timer_with_reload_value(uint32_t reload_value) {
   pushfd();
   cli();
 
-  pit_command(((PITControlWord) {.repr = {.select_counter = COUNTER_0, .read_write = LSB_MSB, .mode = RATE_GENERATOR, .bcd = 0}}.byte));
+  pit_command(((PITControlWord){.repr = {.select_counter = COUNTER_0, .read_write = LSB_MSB, .mode = RATE_GENERATOR, .bcd = 0}}.byte));
   pit_send(PIT_CHANNEL0, (uint8_t) reload_value);
   pit_send(PIT_CHANNEL0, (uint8_t) (reload_value >> 8));
 
   popfd();
 
-  direct_set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, timer_handler);
+  direct_set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, KERNEL_PL, timer_handler);
 }

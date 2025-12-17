@@ -100,10 +100,10 @@ static void send_break_key(KeyCode code);
 void init_ps2_keyboard(uint8_t channel) {
   if (channel) {
     ps2_send_command(ENABLE_CHANNEL1);
-    set_interrupt_handler(MOUSE_VECTOR, INTERRUPT_GATE, keyboard_handler); //todo
+    set_interrupt_handler(MOUSE_VECTOR, INTERRUPT_GATE, KERNEL_PL, keyboard_handler); //todo
   } else {
     ps2_send_command(ENABLE_CHANNEL0);
-    set_interrupt_handler(KEYBOARD_VECTOR, INTERRUPT_GATE, keyboard_handler); //todo
+    set_interrupt_handler(KEYBOARD_VECTOR, INTERRUPT_GATE, KERNEL_PL, keyboard_handler); //todo
   }
 
   ps2_device_enqueue_command(channel, SET_LED);

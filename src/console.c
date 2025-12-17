@@ -21,10 +21,10 @@ void init_consoles(void) {
   fullscreen.buffer_pos  = 0;
 
   vga_init_printer(24, 80);
-  fullscreen.position = (Point) {.x = 0, .y = 0};
-  fullscreen.size     = (Point) {.x = 80, .y = 24};
+  fullscreen.position = (Point){.x = 10, .y = 10};
+  fullscreen.size     = (Point){.x = 30, .y = 20};
 
-  fullscreen.cursor = (Point) {.x = 0, .y = 0};
+  fullscreen.cursor = (Point){.x = 0, .y = 0};
   fullscreen.format = fullscreen.default_format;
 
   stdout = &fullscreen;
@@ -33,10 +33,10 @@ void init_consoles(void) {
 
 void clear_console(Console* console) {
   vga_fill(console->position, console->size,
-           (VGAChar) {.repr = {.character = ' ',
-                               .fgcolor   = console->format.foreground,
-                               .bgcolor   = console->format.background}});
-  console->cursor = (Point) {0, 0};
+           (VGAChar){.repr = {.character = ' ',
+                              .fgcolor   = console->format.foreground,
+                              .bgcolor   = console->format.background}});
+  console->cursor = (Point){0, 0};
   vga_flush();
 }
 
@@ -89,7 +89,7 @@ static char* bound_string_format_integer(char* string, char* const end, uint32_t
   char sign = 0;
   if (flags & SIGNED_FLAG) {
     if ((int32_t) number < 0) {
-      number = (uint32_t) -(int32_t) number;
+      number = (uint32_t) - (int32_t) number;
       sign   = '-';
       width--;
     } else if (flags & PLUS_FLAG) {
@@ -604,10 +604,10 @@ static const char* process_escape_sequence(const char* string, Console* console)
 }
 
 static inline void inplace_cwrite(int character, Console* console) {
-  vga_print_char((VGAChar) {.repr = {
-                                .character = (char) character,
-                                .fgcolor   = console->format.foreground,
-                                .bgcolor   = console->format.background}},
+  vga_print_char((VGAChar){.repr = {
+                               .character = (char) character,
+                               .fgcolor   = console->format.foreground,
+                               .bgcolor   = console->format.background}},
                  console->position.x + console->cursor.x, console->position.y + console->cursor.y);
 }
 
@@ -625,11 +625,11 @@ static inline char cget_char(Console* console) {
 
 static void cscroll(Console* console) {
   vga_copy(console->position,
-           (Point) {.x = console->position.x, .y = console->position.y + 1},
-           (Point) {.x = console->size.x, .y = console->size.y - 1});
-  vga_fill((Point) {.x = console->position.x, .y = console->position.y + console->size.y - 1},
-           (Point) {.x = console->size.x, .y = 1},
-           (VGAChar) {.repr = {.character = ' ', .fgcolor = console->format.foreground, .bgcolor = console->format.background}});
+           (Point){.x = console->position.x, .y = console->position.y + 1},
+           (Point){.x = console->size.x, .y = console->size.y - 1});
+  vga_fill((Point){.x = console->position.x, .y = console->position.y + console->size.y - 1},
+           (Point){.x = console->size.x, .y = 1},
+           (VGAChar){.repr = {.character = ' ', .fgcolor = console->format.foreground, .bgcolor = console->format.background}});
   if (console->cursor.y)
     console->cursor.y--;
 }

@@ -2,9 +2,9 @@
 
 #include "assert.h"
 #include "ports.h"
-#include "utils.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define lidt(p) __asm__ __volatile__("lidt %0" ::"m"(p));
 
@@ -16,30 +16,13 @@
 #pragma pack(push, 1)
 
 typedef struct {
-  uint16_t offset_low                       : 16;
-  uint16_t segment_selector                 : 16;
-  uint8_t reserved                          : 5;
-  uint8_t fixed1                            : 3;
-  GateDescriptorType type                   : 4;
-  uint8_t fixed2                            : 1;
-  PrivilegeLevel descriptor_privilege_level : 2;
-  uint8_t present                           : 1;
-  uint16_t offset_high                      : 16;
-} GateDescriptorS;
-
-typedef union {
-  GateDescriptorS repr;
-  uint64_t qword;
-} GateDescriptor;
-
-typedef struct {
   uint16_t limit;
   uint32_t base;
 } IDTPseudoDescriptor;
 
 #pragma pack(pop)
 
-static GateDescriptor* idt;
+GateDescriptor* idt;
 static InterruptHandler* handlerTable;
 
 extern void collect_ctx(void);
@@ -174,6 +157,13 @@ void set_interrupt_handler(uint8_t vector, GateDescriptorType type,
   handlerTable[vector]     = handler;
   idt[vector].repr.type    = type;
   idt[vector].repr.present = 1;
+}
+
+void direct_set_interrupt_handler(uint8_t vector, GateDescriptorType type, void (*handler)(void)) {
+  idt[vector].repr.type        = type;
+  idt[vector].repr.offset_low  = (uint16_t) ((size_t) handler & 0xFFFF);
+  idt[vector].repr.offset_high = (uint16_t) (((size_t) handler >> 16) & 0xFFFF);
+  idt[vector].repr.present     = 1;
 }
 
 // ========= 8259 IO =========

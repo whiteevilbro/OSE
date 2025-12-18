@@ -24,9 +24,12 @@ static void experiment8(void);
 static void experiment9(void);
 static void experiment10(void);
 
+extern void hack(void);
+
+static void clr(void);
 static void zero_global(void);
 static void empty(void);
-void scall(const Context* const ctx);
+static void scall(const Context* const ctx);
 
 int globali = 0;
 
@@ -34,6 +37,10 @@ int globali = 0;
 void (*experiment(int n))(void) {
   disable_io_devices(SYSTEM_TIMER);
   switch (n) {
+    case 0:
+      set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, KERNEL_PL, (InterruptHandler) clr);
+      enable_io_devices(SYSTEM_TIMER);
+      return hack;
     case 1:
       return experiment1;
     case 2:
@@ -125,7 +132,11 @@ static void experiment10(void) {
   exp();
 }
 
-void scall(const Context* const ctx) {
+static void clr(void) {
+  clear_console(stdout);
+}
+
+static void scall(const Context* const ctx) {
   printf("%d ", ctx->eax);
 }
 

@@ -21,8 +21,8 @@ void init_consoles(void) {
   fullscreen.buffer_pos  = 0;
 
   vga_init_printer(24, 80);
-  fullscreen.position = (Point){.x = 10, .y = 10};
-  fullscreen.size     = (Point){.x = 30, .y = 20};
+  fullscreen.position = (Point){.x = 0, .y = 0};
+  fullscreen.size     = (Point){.x = 80, .y = 24};
 
   fullscreen.cursor = (Point){.x = 0, .y = 0};
   fullscreen.format = fullscreen.default_format;

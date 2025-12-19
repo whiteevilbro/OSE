@@ -119,8 +119,8 @@ typedef void (*InterruptHandler)(const Context* const);
 extern GateDescriptor* idt;
 
 void init_interrupts(void);
-void set_interrupt_handler(uint8_t vector, GateDescriptorType type, InterruptHandler handler);
-void direct_set_interrupt_handler(uint8_t vector, GateDescriptorType type, void (*handler)(void));
+void set_interrupt_handler(uint8_t vector, GateDescriptorType type, PrivilegeLevel dpl, InterruptHandler handler);
+void direct_set_interrupt_handler(uint8_t vector, GateDescriptorType type, PrivilegeLevel dpl, void (*handler)(void));
 void init_pic(EOIType automatic_EOI);
 void enable_io_devices(IODevice devices);
 void disable_io_devices(IODevice devices);

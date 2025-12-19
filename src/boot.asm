@@ -183,12 +183,10 @@ jump_to_userspace:
 
   mov ebx, [esp + 4]
   mov ecx, [esp + 8]
-  push WORD 0
-  push WORD APP_DATA_SEGMENT
+  push DWORD APP_DATA_SEGMENT
   push DWORD ecx
   push DWORD 0x0202 ; eflags: [ IF ] + reserved 0b10 bit
-  push WORD 0
-  push WORD APP_CODE_SEGMENT
+  push DWORD APP_CODE_SEGMENT
   push DWORD ebx
   iret
   
@@ -440,9 +438,10 @@ gdt:
 
     ; base high                         :8
     db 0x0
+gdt_end:
 
 gdt_pseudodescriptor:
-  dw 0x30 - 1
+  dw gdt_end - gdt - 1
   dd gdt
 
 ; #endregion

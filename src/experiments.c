@@ -116,8 +116,8 @@ static void experiment7(void) {
 }
 
 static void experiment8(void) {
-  for (; globali;)
-    printf("%d ", globali++);
+  for (; globali; globali++)
+    printf("%d ", globali);
   printf("\nGOTCHA!\n");
   halt();
 }

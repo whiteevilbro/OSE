@@ -34,7 +34,7 @@ void kernel_entry(const void* memsize) {
   }
 
   void* stack = (uint8_t*) malloc_immortal(4 << 10, 8) + (size_t) (4 << 10);
-  jump_to_userspace(experiment(0), stack);
+  jump_to_userspace(experiment(10), stack);
 
   halt();
 }

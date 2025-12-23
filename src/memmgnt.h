@@ -15,4 +15,8 @@ void* calloc_immortal(size_t size, size_t alignment);
 size_t strlen(const char* str);
 int memcmp(const void* ptr1, const void* ptr2, size_t num);
 
+void* malloc_page(void);
+void* calloc_page(void);
+void free_page(void* page);
+
 #endif

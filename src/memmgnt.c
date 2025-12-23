@@ -90,3 +90,42 @@ int memcmp(const void* ptr1, const void* ptr2, size_t num) {
   }
   return (int) *--p1 - (int) *--p2;
 }
+
+#define PAGE_SPACE_START 0x400000
+
+//TODO: make it actually SCAN memory while in BIOS
+#ifndef PAGE_SPACE_END
+  #define PAGE_SPACE_END 0x40000000
+#endif
+
+#define PAGE_SIZE 0x1000
+
+static void* frame_edge      = (void*) PAGE_SPACE_START;
+static void* frame_free_list = NULL;
+
+//todo high-half kernel & IN-VA context switching
+//todo swapping
+void* malloc_page(void) {
+  void* page;
+  if (frame_free_list) {
+    page            = frame_free_list;
+    frame_free_list = *(void**) frame_free_list;
+  } else {
+    if ((size_t) frame_edge >= (size_t) (PAGE_SPACE_END - PAGE_SIZE))
+      kernel_panic("Out of memory. Download more ram at downloadmoreram.com\n");
+    page       = frame_edge;
+    frame_edge = (uint8_t*) frame_edge + PAGE_SIZE;
+  }
+  return page;
+}
+
+void* calloc_page(void) {
+  void* page = malloc_page();
+  memzero(page, PAGE_SIZE);
+  return page;
+}
+
+void free_page(void* page) {
+  *(void**) page  = frame_free_list;
+  frame_free_list = page;
+}

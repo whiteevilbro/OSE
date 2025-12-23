@@ -22,6 +22,30 @@
 #define send_EOI_master() outb(PIC_MASTER_COMMAND_PORT, EOI);
 #define send_EOI_slave() outb(PIC_SLAVE_COMMAND_PORT, EOI)
 
+#define PANIC_MESSAGE                                              \
+  "Kernel panic: unhandled interrupt #%#010x at %#010x:%#010x\n\n" \
+  "Registers:\n"                                                   \
+  "  EAX: %#010x, ECX: %#010x, EDX: %#010x, EBX: %#010x\n"         \
+  "  ESP: %#010x, EBP: %#010x, ESI: %#010x, EDI: %#010x\n\n"       \
+  "EFLAGS:\n  %#010x\n"
+
+#define ERROR_CODE_MESSAGE \
+  "Error code: %#010x\n"
+
+#define CR_MESSAGE       \
+  "Control registers:\n" \
+  "  CR0: %#010x\n"      \
+  "  CR2: %#010x\n"      \
+  "  CR3: %#010x\n"      \
+  "  CR4: %#010x\n"
+
+#define UNPACK_CONTEXT(ctx)                                               \
+  ctx->vector, ctx->cs, ctx->eip, ctx->eax, ctx->ecx, ctx->edx, ctx->ebx, \
+      ctx->esp, ctx->ebp, ctx->esi, ctx->edi, ctx->eflags
+
+#define UNPACK_CR(crctx) \
+  crctx.cr0, crctx.cr2, crctx.cr3, crctx.cr4
+
 #if __GNUC__ >= 15
   #define pushfd()                   \
     uint32_t __eflags;               \
@@ -44,6 +68,41 @@ typedef enum {
   INTERRUPT_GATE = 0xE,
   TRAP_GATE      = 0xF,
 } GateDescriptorType;
+
+typedef enum {
+  DIVISION_ERROR_VECTOR           = 0x00,
+  DEBUG_VECTOR                    = 0x01,
+  NMI_VECTOR                      = 0x02,
+  BREAKPOINT_VECTOR               = 0x03,
+  OVERFLOW_VECTOR                 = 0x04,
+  BOUND_RANGE_EXCEEDED_VECTOR     = 0x05,
+  INVALID_OPCODE_VECTOR           = 0x06,
+  DEVICE_NOT_AVAILABLE_VECTOR     = 0x07,
+  DOUBLE_FAULT_VECTOR             = 0x08,
+  //
+  INVALID_TSS_VECTOR              = 0x0A,
+  SEGMENT_NOT_PRESENT_VECTOR      = 0x0B,
+  STACK_SEGMENT_FAULT_VECTOR      = 0x0C,
+  GENERAL_PROTECTION_FAULT_VECTOR = 0x0D,
+  PAGE_FAULT_VECTOR               = 0x0E,
+  // reserved
+  X87_FLOATING_POINT_VECTOR       = 0x10,
+  ALIGNMENT_CHECK_VECTOR          = 0x11,
+  MACHINE_CHECK_VECTOR            = 0x12,
+  SIMD_FLOATING_POINT_VECTOR      = 0x13,
+  VIRTUALIZATION_VECTOR           = 0x14,
+  CONTROL_PROTECTION_VECTOR       = 0x15,
+
+  GP = GENERAL_PROTECTION_FAULT_VECTOR,
+  PF = PAGE_FAULT_VECTOR,
+} ExceptionVector;
+
+typedef struct {
+  size_t cr0;
+  size_t cr2;
+  size_t cr3;
+  size_t cr4;
+} CRContext;
 
 typedef struct {
   uint32_t edi;

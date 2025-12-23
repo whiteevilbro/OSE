@@ -1,6 +1,7 @@
 #include "interrupts.h"
 
 #include "assert.h"
+#include "paging.h"
 #include "ports.h"
 #include "utils.h"
 
@@ -42,17 +43,6 @@ void init_pic(EOIType automatic_EOI);
 void disable_io_devices(IODevice devices);
 void enable_io_devices(IODevice devices);
 
-#define PANIC_MESSAGE                                              \
-  "Kernel panic: unhandled interrupt #%#010x at %#010x:%#010x\n\n" \
-  "Registers:\n"                                                   \
-  "  EAX: %#010x, ECX: %#010x, EDX: %#010x, EBX: %#010x\n"         \
-  "  ESP: %#010x, EBP: %#010x, ESI: %#010x, EDI: %#010x\n\n"       \
-  "EFLAGS:\n  %#010x\n"
-
-#define UNPACK_CONTEXT(ctx)                                               \
-  ctx->vector, ctx->cs, ctx->eip, ctx->eax, ctx->ecx, ctx->edx, ctx->ebx, \
-      ctx->esp, ctx->ebp, ctx->esi, ctx->edi, ctx->eflags
-
 void universal_interrupt_handler(const Context* const ctx) {
   InterruptHandler handler = handlerTable[ctx->vector];
   if (handler) {
@@ -61,23 +51,22 @@ void universal_interrupt_handler(const Context* const ctx) {
   }
 
   if (has_error_code(ctx->vector))
-    kernel_panic(PANIC_MESSAGE "\nError code: %#010x", UNPACK_CONTEXT(ctx),
-                 ctx->error_code);
+    kernel_panic(PANIC_MESSAGE "\n" ERROR_CODE_MESSAGE, UNPACK_CONTEXT(ctx), ctx->error_code);
   else
     kernel_panic(PANIC_MESSAGE, UNPACK_CONTEXT(ctx));
 }
 
 static bool has_error_code(uint8_t vector) {
   switch (vector) {
-    case 0x08:
-    case 0x0A:
-    case 0x0B:
-    case 0x0C:
-    case 0x0D:
-    case 0x0E:
-    case 0x11:
-    case 0x15:
-    case 0x1D:
+    case DOUBLE_FAULT_VECTOR:
+    case INVALID_TSS_VECTOR:
+    case SEGMENT_NOT_PRESENT_VECTOR:
+    case STACK_SEGMENT_FAULT_VECTOR:
+    case GENERAL_PROTECTION_FAULT_VECTOR:
+    case PAGE_FAULT_VECTOR:
+    case ALIGNMENT_CHECK_VECTOR:
+    case CONTROL_PROTECTION_VECTOR:
+    case 0x1D: //amd
     case 0x1E:
       return true;
     default:
@@ -129,6 +118,8 @@ void init_interrupts(void) {
   generate_idt();
   handlerTable = calloc_immortal(sizeof(InterruptHandler) * VECTOR_COUNT, 8);
   init_exceptions();
+
+  set_interrupt_handler(PF, INTERRUPT_GATE, KERNEL_PL, pagefault_handler);
 }
 
 static void generate_idt(void) {

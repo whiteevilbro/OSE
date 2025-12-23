@@ -5,7 +5,9 @@ extern __kernel_size_sectors
 extern universal_interrupt_handler
 global halt
 global collect_ctx
-global jump_to_userspace
+global collect_cr
+global restore_context
+global enable_paging
 global exp
 global tss
 global gdt
@@ -158,6 +160,7 @@ collect_ctx:
   call universal_interrupt_handler
 
   mov esp, ebx
+unwind_context:
   popa
   pop gs
   pop fs
@@ -166,30 +169,32 @@ collect_ctx:
   add esp, 8
   iret
 
-extern globali
-exp:
-  mov eax, [globali]
-  int 0x30
-  inc DWORD [globali]
-  jmp exp
+restore_context:
+  mov esp, [esp + 4]
+  jmp unwind_context
 
-; no need to respect ABI, we jump away with later stack overwrite anyway
-jump_to_userspace:
-  mov eax, APP_DATA_SEGMENT
-  mov ds, eax
-  mov es, eax
-  mov fs, eax
-  mov gs, eax
+enable_paging:
+  mov eax, [esp + 4]
+  mov cr3, eax
+  mov eax, cr4
+  or eax, 0x10
+  mov cr4, eax
+  mov eax, cr0
+  or eax, 0x80000000
+  mov cr0, eax
+  ret
 
-  mov ebx, [esp + 4]
-  mov ecx, [esp + 8]
-  push DWORD APP_DATA_SEGMENT
-  push DWORD ecx
-  push DWORD 0x0202 ; eflags: [ IF ] + reserved 0b10 bit
-  push DWORD APP_CODE_SEGMENT
-  push DWORD ebx
-  iret
-  
+collect_cr:
+  mov eax, DWORD [esp + 4]
+  mov ecx, cr0
+  mov DWORD [eax], ecx
+  mov ecx, cr2
+  mov DWORD [eax + 4], ecx
+  mov ecx, cr3
+  mov DWORD [eax + 8], ecx
+  mov ecx, cr4
+  mov DWORD [eax + 12], ecx
+  ret
 
 ; #endregion
 

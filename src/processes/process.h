@@ -28,6 +28,8 @@ typedef struct Process {
   const char** argv;
 
   IntraContext ctx;
+
+  void* lowest_stack_page;
 } Process;
 
 #pragma pack(pop)

@@ -8,6 +8,8 @@ global collect_ctx
 global collect_cr
 global restore_context
 global enable_paging
+global disable_paging
+global set_cr3
 global exp
 global tss
 global gdt
@@ -80,9 +82,6 @@ entry:
 
   .end_read_success:
 
-    mov bp, succes_str
-    call print
-
   .end_read:
 
 video_settings:
@@ -116,6 +115,10 @@ protected_mode_switch:
 protected_mode_trampoline_to_c:
   mov ax, TSS_SEGMENT
   ltr ax
+
+  mov eax, cr4
+  or eax, 0x10
+  mov cr4, eax
 
   mov eax, KERNEL_DATA_SEGMENT
   mov ds, eax
@@ -173,14 +176,20 @@ restore_context:
   mov esp, [esp + 4]
   jmp unwind_context
 
-enable_paging:
+set_cr3:
   mov eax, [esp + 4]
   mov cr3, eax
-  mov eax, cr4
-  or eax, 0x10
-  mov cr4, eax
+  ret
+
+enable_paging:
   mov eax, cr0
   or eax, 0x80000000
+  mov cr0, eax
+  ret
+
+disable_paging:
+  mov eax, cr0
+  and eax, ~0x80000000
   mov cr0, eax
   ret
 
@@ -207,20 +216,6 @@ mov bp, read_error_str
 call print
 jmp $
 
-
-; es:di - null terminated string fully contained in es effective address space
-; ax - return value
-; di, ax registers are not saved. Others are.
-strlen:
-  xor al, al
-  mov cx, 0xffff
-  repne scasb
-  sub di, bp
-  mov ax, di
-  dec ax
-  ret
-
-
 ; ds:bp - pointer to null-terminated string fully contained in ds effective address space
 ; ax, bx, cx, dx, si registers are not saved. Others are.
 print:
@@ -232,7 +227,13 @@ print:
   ; set di
   mov di, bp
 
-  call strlen
+  xor al, al
+  mov cx, 0xffff
+  repne scasb
+  sub di, bp
+  mov ax, di
+  dec ax
+
   ; save result for later
   mov si, ax
   
@@ -255,9 +256,7 @@ print:
   pop es
   ret
 
-read_error_str db "Failed to read sector. Halting", 0 
-
-succes_str db "Success",0xD,0xA,0
+read_error_str db "Failed to read sector. Halt", 0 
 
 ; #endregion
 

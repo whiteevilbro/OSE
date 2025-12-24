@@ -2,6 +2,7 @@
 
 #include "./scheduler/scheduler.h"
 #include "memmgnt.h"
+#include "paging.h"
 #include "utils.h"
 
 #include <stddef.h>
@@ -21,7 +22,8 @@ void enqueue_process(void (*func)(void), const int argc, const char* argv[]) {
 noret switch_process(void) {
   Process* process = scheduler_next_process();
   if (!process->pdt) {
-    process->pdt = create_VAS();
+    process->pdt               = create_VAS();
+    process->lowest_stack_page = (void*) 0x7ff000;
 
     // //todo: somehow make it less hardcoded? maybe function that creates VA should fill in cs:eip & ss:esp ?
     process->ctx = (IntraContext){
@@ -46,6 +48,7 @@ noret switch_process(void) {
         .ss  = APP_DATA_SEGMENT,
         .esp = 0x800000};
   }
-  enable_paging(process->pdt);
+  set_cr3(process->pdt);
+  enable_paging();
   restore_context(&process->ctx);
 }

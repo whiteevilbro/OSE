@@ -69,7 +69,11 @@ typedef union {
 
 #pragma pack(pop)
 
-extern void enable_paging(void* cr3);
+extern void enable_paging(void);
+extern void disable_paging(void);
+extern void set_cr3(void* cr3);
+
+
 PageDirectoryEntry* create_VAS(void);
 void free_VAS(PageDirectoryEntry* pdt);
 void setup_kernel_paging(void);

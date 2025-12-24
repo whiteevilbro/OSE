@@ -195,32 +195,29 @@ void pagefault_handler(const Context* const ctx) {
     kernel_panic(PANIC_MESSAGE "\n" ERROR_CODE_MESSAGE CR_MESSAGE, UNPACK_CONTEXT(ctx), ctx->error_code, UNPACK_CR(crctx));
   }
 
-  __asm__ __volatile__(
-      "mov eax, cr0;"
-      "and eax, ~0x80000000;"
-      "mov cr0, eax;" ::: "eax");
+  disable_paging();
   Process* process = scheduler_current_process();
 
-  if (crctx.cr2 <= 0x7000) {
+  if (crctx.cr2 < 0x7000) {
     // NULL
     printf("NPE\n");
   } else if (0x80000 <= crctx.cr2 && crctx.cr2 < 0x400000) {
     // Stack Overflow
     printf("SOE\n");
   } else if (0x400000 <= crctx.cr2 && crctx.cr2 < 0x800000) {
-    for (size_t i = 0x800000; i > crctx.cr2;) {
+    for (size_t i = (size_t) process->lowest_stack_page; i > crctx.cr2;) {
       i -= 0x1000;
       if (!is_mounted(process->pdt, (void*) i)) {
         mount_page(process->pdt, (void*) (i & (size_t) ~0xfff), malloc_page(), true, true);
       }
+      process->lowest_stack_page = (void*) i;
     }
-    enable_paging(process->pdt);
+    enable_paging();
     return;
   } else {
     // UB
     printf("UB!\n");
   }
-  //TODO:FIXME
   free_VAS(process->pdt);
   process->pdt = NULL;
   param++;

@@ -1,6 +1,7 @@
 #include "syscalls.h"
 
 #include "interrupts.h"
+#include "paging.h"
 #include "processes/process.h"
 #include "processes/scheduler/scheduler.h"
 #include "utils.h"
@@ -11,15 +12,12 @@ extern int param;
 
 static void exit(const Context* const ctx) {
   //TODO:FIXME
-  __asm__ __volatile__(
-      "mov eax, cr0;"
-      "and eax, ~0x80000000;"
-      "mov cr0, eax;" ::: "eax");
+  disable_paging();
   Process* process = scheduler_current_process();
   free_VAS(process->pdt);
   process->pdt = NULL;
   param++;
-  printf("%d\n", (int) ctx->eax);
+  printf("%p\n", process->lowest_stack_page);
   switch_process();
 }
 

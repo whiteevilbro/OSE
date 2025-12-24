@@ -57,12 +57,17 @@ KERNEL_SIZE_MAX = 30
 all: kill run-debug
 
 # Incremental tasks
+
+userspace/user.bin:
+	@$(MAKE) -C userspace/
+
 $(BUILD_DIR)/:
 	@mkdir -p $@
 
-boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check | $(BUILD_DIR)/
+boot.img: $(BUILD_DIR)/os.bin $(BUILD_DIR)/kernel_size.check userspace/user.bin | $(BUILD_DIR)/
 	@echo -e "\t\e[1mMaking image\e[0m"
 	@dd if=$(BUILD_DIR)/os.bin of=boot.img conv=notrunc
+	@dd if=userspace/user.bin of=boot.img seek=194 bs=512 count=128x4
 
 $(C_OBJECTS): $(C_SOURCES) $(C_HEADERS) | $(BUILD_DIR)/
 	@echo -e "\t\e[1mCompiling\e[0m" $(notdir $*)
@@ -114,6 +119,7 @@ clangd: compile_commands.json
 
 clean: clean-compile clean-assemble clean-link clean-bin clean-image clean-check
 	rm -rf $(BUILD_DIR) 
+	@$(MAKE) -C userspace/ clean
 
 clean-compile:
 	rm -f $(C_OBJECTS)
@@ -142,7 +148,6 @@ ifeq (,$(wildcard $(MODE)))
 	$(MAKE) $(MODE)
 endif
 	$(MAKE) boot.img
-
 
 $(BUILD_DIR)/.RELEASE: | $(BUILD_DIR)/
 	touch $@

@@ -8,42 +8,31 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdio.h>
 
 #define PTEs_BASE 0xD0000000
 #define PDT 0xD0400000
 
-static void* kernel_pt;
 static PageDirectoryEntry kernel_pde;
 
 void setup_kernel_paging(void) {
-  kernel_pt = calloc_page();
-  for (size_t i = 0; i < 1024; i++) {
-    ((PageTableEntry*) kernel_pt)[i] = (PageTableEntry){
-        .mapped = {
-            .present  = true,
-            .writable = true,
-            .user     = (i >= 0x7) && (i < 0x80),
-            .address  = i & 0xFFFFF,
-        }};
-  }
   kernel_pde = (PageDirectoryEntry){
-      .directory = {
-          .present  = true,
-          .writable = true,
-          .user     = true,
-          .address  = ((size_t) kernel_pt >> 12) & 0xFFFFF,
+      .page = {
+          .present   = true,
+          .writable  = true,
+          .user      = false,
+          .page_size = true,
+          .address   = 0x0,
       },
   };
 }
 
-static bool is_mounted(PageDirectoryEntry* pdt, void* virtual) {
+bool is_mounted(PageDirectoryEntry* pdt, void* virtual) {
   return pdt[(size_t) virtual >> 22].unmapped.present &&
          (pdt[(size_t) virtual >> 22].page.page_size ||
           ((PageTableEntry*) ((size_t) pdt[(size_t) virtual >> 22].directory.address << 12))[((size_t) virtual >> 12) & 0x3ff].mapped.present);
 }
 
-static void mount_page(PageDirectoryEntry* pdt, void* virtual, void* physical, bool writable, bool user) {
+void mount_page(PageDirectoryEntry* pdt, void* virtual, void* physical, bool writable, bool user, bool freeable) {
   if (!pdt[(size_t) virtual >> 22].unmapped.present) {
     pdt[(size_t) virtual >> 22] = (PageDirectoryEntry){
         .directory = {
@@ -58,10 +47,11 @@ static void mount_page(PageDirectoryEntry* pdt, void* virtual, void* physical, b
     PageTableEntry* pt                   = (PageTableEntry*) ((size_t) pdt[(size_t) virtual >> 22].directory.address << 12);
     pt[((size_t) virtual >> 12) & 0x3ff] = (PageTableEntry){
         .mapped = {
-            .present  = true,
-            .writable = writable,
-            .user     = user,
-            .address  = (size_t) physical >> 12,
+            .present            = true,
+            .writable           = writable,
+            .user               = user,
+            .available_freeable = freeable,
+            .address            = (size_t) physical >> 12,
         }};
   }
 }
@@ -72,27 +62,11 @@ PageDirectoryEntry* create_VAS(void) {
   pdt[0] = kernel_pde;
 
 
-  PageTableEntry* stack_pt = calloc_page();
-
-  stack_pt[1023] = (PageTableEntry){
-      .mapped = {
-          .present  = true,
-          .writable = true,
-          .user     = true,
-          .address  = ((size_t) malloc_page() >> 12) & 0xFFFFF,
-      }};
-
-  pdt[1] = (PageDirectoryEntry){
-      .directory = {
-          .present  = true,
-          .writable = true,
-          .user     = true,
-          .address  = ((size_t) stack_pt >> 12) & 0xFFFFF,
-      }};
+  mount_page(pdt, (void*) 0x7ff000, malloc_page(), true, true, true);
 
   // technically every write to pdt should be followed with write to ptpt (at exact same coordinates)
   // PageTableEntry* page_table_page_table = calloc_page();
-
+  //
   // page_table_page_table[0] = (PageTableEntry){
   //     .mapped = {
   //         .present  = true,
@@ -115,7 +89,7 @@ PageDirectoryEntry* create_VAS(void) {
   //         .user     = false,
   //         .address  = (size_t) page_table_page_table >> 12,
   //     }};
-
+  //
   // pdt[PTEs_BASE >> 22] = (PageDirectoryEntry){
   //     .directory = {
   //         .present  = true,
@@ -123,9 +97,9 @@ PageDirectoryEntry* create_VAS(void) {
   //         .user     = false,
   //         .address  = (size_t) page_table_page_table >> 12,
   //     }};
-
+  //
   // PageTableEntry* page_directory_page_table = calloc_page();
-
+  //
   // page_directory_page_table[0] = (PageTableEntry){
   //     .mapped = {
   //         .present  = true,
@@ -133,7 +107,7 @@ PageDirectoryEntry* create_VAS(void) {
   //         .user     = false,
   //         .address  = (size_t) pdt >> 12,
   //     }};
-
+  //
   // pdt[PDT >> 22] = (PageDirectoryEntry){
   //     .directory = {
   //         .present  = true,
@@ -154,7 +128,7 @@ PageDirectoryEntry* create_VAS(void) {
 
 static void free_pagetable(PageTableEntry* pt) {
   for (size_t i = 0; i < 1024; i++) {
-    if (pt[i].mapped.present) {
+    if (pt[i].mapped.present && pt[i].mapped.available_freeable) {
       free_page((void*) ((size_t) pt[i].mapped.address << 12));
     }
   }
@@ -170,6 +144,7 @@ void free_VAS(PageDirectoryEntry* pdt) {
       }
     }
   }
+  free_page(pdt);
 }
 
 typedef enum {
@@ -186,8 +161,6 @@ typedef enum {
 
 extern void collect_cr(CRContext* crctx);
 
-extern int param; //TODO: removeme
-
 void pagefault_handler(const Context* const ctx) {
   CRContext crctx;
   collect_cr(&crctx);
@@ -198,17 +171,17 @@ void pagefault_handler(const Context* const ctx) {
   disable_paging();
   Process* process = scheduler_current_process();
 
-  if (crctx.cr2 < 0x7000) {
+  if (crctx.cr2 < 0x200000) {
     // NULL
-    printf("NPE\n");
-  } else if (0x80000 <= crctx.cr2 && crctx.cr2 < 0x400000) {
+    cprintf(&process->console, "Process NPEd\n");
+  } else if (0x200000 <= crctx.cr2 && crctx.cr2 < 0x400000) {
     // Stack Overflow
-    printf("SOE\n");
+    cprintf(&process->console, "Process SOEd\n");
   } else if (0x400000 <= crctx.cr2 && crctx.cr2 < 0x800000) {
     for (size_t i = (size_t) process->lowest_stack_page; i > crctx.cr2;) {
       i -= 0x1000;
       if (!is_mounted(process->pdt, (void*) i)) {
-        mount_page(process->pdt, (void*) (i & (size_t) ~0xfff), malloc_page(), true, true);
+        mount_page(process->pdt, (void*) (i & (size_t) ~0xfff), malloc_page(), true, true, true);
       }
       process->lowest_stack_page = (void*) i;
     }
@@ -216,10 +189,8 @@ void pagefault_handler(const Context* const ctx) {
     return;
   } else {
     // UB
-    printf("UB!\n");
+    cprintf(&process->console, "Process UBd\n");
   }
-  free_VAS(process->pdt);
-  process->pdt = NULL;
-  param++;
+  kill_process(process);
   switch_process();
 }

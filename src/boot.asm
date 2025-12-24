@@ -5,7 +5,11 @@ extern __kernel_size_sectors
 extern universal_interrupt_handler
 global halt
 global collect_ctx
-global jump_to_userspace
+global collect_cr
+global restore_context
+global enable_paging
+global disable_paging
+global set_cr3
 global exp
 global tss
 global gdt
@@ -78,9 +82,6 @@ entry:
 
   .end_read_success:
 
-    mov bp, succes_str
-    call print
-
   .end_read:
 
 video_settings:
@@ -114,6 +115,10 @@ protected_mode_switch:
 protected_mode_trampoline_to_c:
   mov ax, TSS_SEGMENT
   ltr ax
+
+  mov eax, cr4
+  or eax, 0x10
+  mov cr4, eax
 
   mov eax, KERNEL_DATA_SEGMENT
   mov ds, eax
@@ -158,6 +163,7 @@ collect_ctx:
   call universal_interrupt_handler
 
   mov esp, ebx
+unwind_context:
   popa
   pop gs
   pop fs
@@ -166,30 +172,38 @@ collect_ctx:
   add esp, 8
   iret
 
-extern globali
-exp:
-  mov eax, [globali]
-  int 0x30
-  inc DWORD [globali]
-  jmp exp
+restore_context:
+  mov esp, [esp + 4]
+  jmp unwind_context
 
-; no need to respect ABI, we jump away with later stack overwrite anyway
-jump_to_userspace:
-  mov eax, APP_DATA_SEGMENT
-  mov ds, eax
-  mov es, eax
-  mov fs, eax
-  mov gs, eax
+set_cr3:
+  mov eax, [esp + 4]
+  mov cr3, eax
+  ret
 
-  mov ebx, [esp + 4]
-  mov ecx, [esp + 8]
-  push DWORD APP_DATA_SEGMENT
-  push DWORD ecx
-  push DWORD 0x0202 ; eflags: [ IF ] + reserved 0b10 bit
-  push DWORD APP_CODE_SEGMENT
-  push DWORD ebx
-  iret
-  
+enable_paging:
+  mov eax, cr0
+  or eax, 0x80000000
+  mov cr0, eax
+  ret
+
+disable_paging:
+  mov eax, cr0
+  and eax, ~0x80000000
+  mov cr0, eax
+  ret
+
+collect_cr:
+  mov eax, DWORD [esp + 4]
+  mov ecx, cr0
+  mov DWORD [eax], ecx
+  mov ecx, cr2
+  mov DWORD [eax + 4], ecx
+  mov ecx, cr3
+  mov DWORD [eax + 8], ecx
+  mov ecx, cr4
+  mov DWORD [eax + 12], ecx
+  ret
 
 ; #endregion
 
@@ -202,20 +216,6 @@ mov bp, read_error_str
 call print
 jmp $
 
-
-; es:di - null terminated string fully contained in es effective address space
-; ax - return value
-; di, ax registers are not saved. Others are.
-strlen:
-  xor al, al
-  mov cx, 0xffff
-  repne scasb
-  sub di, bp
-  mov ax, di
-  dec ax
-  ret
-
-
 ; ds:bp - pointer to null-terminated string fully contained in ds effective address space
 ; ax, bx, cx, dx, si registers are not saved. Others are.
 print:
@@ -227,7 +227,13 @@ print:
   ; set di
   mov di, bp
 
-  call strlen
+  xor al, al
+  mov cx, 0xffff
+  repne scasb
+  sub di, bp
+  mov ax, di
+  dec ax
+
   ; save result for later
   mov si, ax
   
@@ -250,9 +256,7 @@ print:
   pop es
   ret
 
-read_error_str db "Failed to read sector. Halting", 0 
-
-succes_str db "Success",0xD,0xA,0
+read_error_str db "Failed to read sector. Halt", 0 
 
 ; #endregion
 

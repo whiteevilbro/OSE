@@ -4,11 +4,12 @@
 #include "interrupts.h"
 
 #include <stdarg.h>
+#include <stddef.h>
 
 noret vkernel_panic(const char* fmt, va_list args) {
   cli();
   stdout = &fullscreen;
-  clear_console(stdout);
+  // clear_console(stdout);
   vprintf(fmt, args);
   halt();
   __builtin_unreachable();

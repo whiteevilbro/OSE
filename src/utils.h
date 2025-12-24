@@ -8,8 +8,6 @@ extern void* tss;
 
 extern noret halt(void);
 
-extern noret jump_to_userspace(void (*func)(void), void* stack);
-
 typedef enum {
   RING_0    = 0x0,
   RING_1    = 0x1,
@@ -22,8 +20,8 @@ typedef enum {
 typedef enum {
   KERNEL_CODE_SEGMENT = 0x8,
   KERNEL_DATA_SEGMENT = 0x10,
-  APP_CODE_SEGMENT    = 0x18,
-  APP_DATA_SEGMENT    = 0x20,
+  APP_CODE_SEGMENT    = 0x18 | USER_PL,
+  APP_DATA_SEGMENT    = 0x20 | USER_PL,
   TSS_SEGMENT         = 0x28,
 } Segment;
 

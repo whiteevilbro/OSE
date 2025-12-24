@@ -6,7 +6,10 @@
 #include "experiments.h" // IWYU pragma: keep
 #include "interrupts.h"
 #include "memmgnt.h"
+#include "paging.h"
 #include "pit.h"
+#include "processes/process.h"
+#include "syscalls.h"
 #include "utils.h"
 
 #include <stdbool.h>
@@ -20,7 +23,7 @@ void kernel_entry(const void* memsize) {
   init_interrupts();
 
   init_pic(AUTOMATIC_EOI);
-  init_timer(200);
+  init_timer(180);
   enable_io_devices(SYSTEM_TIMER);
   sti();
 
@@ -33,8 +36,11 @@ void kernel_entry(const void* memsize) {
     init_ps2_keyboard(0);
   }
 
-  void* stack = (uint8_t*) malloc_immortal(4 << 10, 8) + (size_t) (4 << 10);
-  jump_to_userspace(experiment(10), stack);
+  setup_kernel_paging();
+  init_scheduler();
+  register_syscalls();
+  enqueue_process(experiment(1), 0, NULL);
+  switch_process();
 
   halt();
 }

@@ -3,7 +3,7 @@ SECTIONS {
     .start = .;
 
     .boot : {
-        BUILD_DIR/boot.o (.text);
+        ./DIR/boot.o (.text);
     }
 
     .kernel : {
@@ -13,7 +13,7 @@ SECTIONS {
         *(.data);
         *(.bss);
     }
-    .end = .;
+    .end = 0x060000;
     .sizeb = .end - .start;
     __kernel_code_end = .end;
     __kernel_size_sectors = (.sizeb / 512) + ((.sizeb % 512) != 0);

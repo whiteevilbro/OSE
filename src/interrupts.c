@@ -3,6 +3,8 @@
 #include "assert.h"
 #include "paging.h"
 #include "ports.h"
+#include "processes/process.h"
+#include "processes/scheduler/scheduler.h"
 #include "utils.h"
 
 #include <stdbool.h>
@@ -25,7 +27,7 @@ typedef struct {
 #pragma pack(pop)
 
 GateDescriptor* idt;
-static InterruptHandler* handlerTable;
+InterruptHandler* handlerTable;
 static uint8_t* trampolines;
 
 extern void collect_ctx(void);
@@ -48,6 +50,11 @@ void universal_interrupt_handler(const Context* const ctx) {
   if (handler) {
     handler(ctx);
     return;
+  }
+  if (ctx->cs & 0x3) {
+    Process* process = scheduler_current_process();
+    kill_process(process);
+    switch_process();
   }
 
   if (has_error_code(ctx->vector))
@@ -120,6 +127,7 @@ void init_interrupts(void) {
   init_exceptions();
 
   set_interrupt_handler(PF, INTERRUPT_GATE, KERNEL_PL, pagefault_handler);
+  set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, KERNEL_PL, (InterruptHandler) ret);
 }
 
 static void generate_idt(void) {

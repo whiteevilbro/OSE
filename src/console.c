@@ -641,7 +641,7 @@ int cflush(Console* console) {
   const char* end = pos + console->buffer_pos;
   char c;
 
-  size_t bottom_bound = console->position.y + console->size.y;
+  size_t bottom_bound = console->size.y;
 
   while (pos < end) {
     if (console->cursor.y >= bottom_bound)

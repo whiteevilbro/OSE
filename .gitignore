@@ -4,3 +4,7 @@
 .cache
 build
 compile_commands.json
+*.o
+*.elf
+*.strp
+*.bin

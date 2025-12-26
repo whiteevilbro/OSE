@@ -12,17 +12,18 @@
 // C99 allows read/write operations in different union fields with compatible types
 typedef union {
   struct {
-    bool present         : 1;
-    bool writable        : 1;
-    bool user            : 1;
-    bool write_through   : 1;
-    bool disable_caching : 1;
-    bool accessed        : 1;
-    bool dirty           : 1;
-    bool pat             : 1;
-    bool global          : 1;
-    uint8_t available    : 3;
-    size_t address       : 20;
+    bool present            : 1;
+    bool writable           : 1;
+    bool user               : 1;
+    bool write_through      : 1;
+    bool disable_caching    : 1;
+    bool accessed           : 1;
+    bool dirty              : 1;
+    bool pat                : 1;
+    bool global             : 1;
+    bool available_freeable : 1;
+    uint8_t available       : 2;
+    size_t address          : 20;
   } mapped;
 
   struct {
@@ -73,6 +74,8 @@ extern void enable_paging(void);
 extern void disable_paging(void);
 extern void set_cr3(void* cr3);
 
+bool is_mounted(PageDirectoryEntry* pdt, void* virtual);
+void mount_page(PageDirectoryEntry* pdt, void* virtual, void* physical, bool writable, bool user, bool freeable);
 
 PageDirectoryEntry* create_VAS(void);
 void free_VAS(PageDirectoryEntry* pdt);

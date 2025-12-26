@@ -7,6 +7,7 @@ extern void* gdt;
 extern void* tss;
 
 extern noret halt(void);
+extern void ret(void);
 
 typedef enum {
   RING_0    = 0x0,

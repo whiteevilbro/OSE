@@ -41,7 +41,7 @@
 
 #define UNPACK_CONTEXT(ctx)                                               \
   ctx->vector, ctx->cs, ctx->eip, ctx->eax, ctx->ecx, ctx->edx, ctx->ebx, \
-      ctx->esp, ctx->ebp, ctx->esi, ctx->edi, ctx->eflags
+      ctx->pseudo_esp, ctx->ebp, ctx->esi, ctx->edi, ctx->eflags
 
 #define UNPACK_CR(crctx) \
   crctx.cr0, crctx.cr2, crctx.cr3, crctx.cr4
@@ -108,7 +108,7 @@ typedef struct {
   uint32_t edi;
   uint32_t esi;
   uint32_t ebp;
-  uint32_t esp;
+  uint32_t pseudo_esp;
   uint32_t ebx;
   uint32_t edx;
   uint32_t ecx;
@@ -124,6 +124,9 @@ typedef struct {
   uint32_t eip;
   Alignas(4) uint16_t cs;
   uint32_t eflags; // 16
+
+  uint32_t esp;
+  Alignas(4) uint16_t ss;
 } Context;
 
 typedef enum {
@@ -176,6 +179,7 @@ typedef union {
 typedef void (*InterruptHandler)(const Context* const);
 
 extern GateDescriptor* idt;
+extern InterruptHandler* handlerTable;
 
 void init_interrupts(void);
 void set_interrupt_handler(uint8_t vector, GateDescriptorType type, PrivilegeLevel dpl, InterruptHandler handler);

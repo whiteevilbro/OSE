@@ -1,8 +1,8 @@
 #ifndef PROCESS_H_
 #define PROCESS_H_
 
+#include "console.h"
 #include "interrupts.h"
-#include "memmgnt.h"
 #include "paging.h"
 #include "utils.h"
 
@@ -12,14 +12,10 @@
 
 #pragma pack(push, 1)
 
-typedef struct {
-  Context context;
-  uint32_t esp;
-  Alignas(4) uint16_t ss;
-} IntraContext;
-
 typedef struct Process {
   PageDirectoryEntry* pdt;
+  Context ctx;
+
   size_t pid;               // for now it could be calculated from address. May change later
   void (*executable)(void); // some day this will be FILE* or /path/
 
@@ -27,16 +23,17 @@ typedef struct Process {
   int argc;
   const char** argv;
 
-  IntraContext ctx;
-
+  Console console;
   void* lowest_stack_page;
 } Process;
 
 #pragma pack(pop)
 
 void init_scheduler(void);
-void enqueue_process(void (*func)(void), const int argc, const char* argv[]);
+void enqueue_process(void (*func)(void), const int argc, const char* argv[], Console* console);
 noret switch_process(void);
+noret save_and_switch_process(const Context* const ctx);
+void kill_process(Process* process);
 
 
 #endif

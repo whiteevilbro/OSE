@@ -53,8 +53,7 @@ void vga_copy(const Point dest, const Point src, const Point size) {
   VGAChar* dest_cursor;
   VGAChar* src_cursor;
 
-  size_t length = dest.x + size.x;
-  length        = min(length, page_columns) * sizeof(VGAChar);
+  size_t length = (min(dest.x + size.x, page_columns) - dest.x) * sizeof(VGAChar);
   for (size_t i = 0; i < size.y; i++) {
     dest_cursor = dest_p + i * page_columns;
     src_cursor  = src_p + i * page_columns;

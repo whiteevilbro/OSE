@@ -17,6 +17,9 @@ void* scheduler_end            = NULL;
 void* scheduler_free_list      = NULL;
 SchedulerNode* current_process = NULL;
 
+size_t current_quant_limit_millis           = 20;
+size_t current_quant_limit_millis_fractions = 0;
+
 static SchedulerNode* alloc_process(void) {
   void* process;
   if (scheduler_free_list) {
@@ -31,7 +34,7 @@ static SchedulerNode* alloc_process(void) {
   return process;
 }
 
-static void free_process(Process* process) {
+static void free_process(SchedulerNode* process) {
   *(void**) process   = scheduler_free_list;
   scheduler_free_list = process;
 }
@@ -57,6 +60,16 @@ Process* schedule_process(void) {
   }
   node->process.pid = ((size_t) node - (size_t) scheduler_start) / sizeof(SchedulerNode);
   return &node->process;
+}
+
+void unschedule_process(Process* process) {
+  SchedulerNode* node = (SchedulerNode*) process;
+  if (node->next == node || node->prev == node)
+    printf("Cannot unschedule process.\n");
+
+  node->next->prev = node->prev;
+  node->prev->next = node->next;
+  free_process(node);
 }
 
 Process* scheduler_next_process(void) {

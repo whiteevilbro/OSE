@@ -13,6 +13,7 @@ global set_cr3
 global exp
 global tss
 global gdt
+global ret
 
 ; === BOOT DEVICE READ CONFIG ===
 
@@ -179,6 +180,7 @@ restore_context:
 set_cr3:
   mov eax, [esp + 4]
   mov cr3, eax
+ret:
   ret
 
 enable_paging:

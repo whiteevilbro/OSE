@@ -35,12 +35,12 @@ static void fill_VAS(Process* process) {
     void* page    = malloc_page();
     size_t length = strlen(process->argv[i]);
     memmove(page, argv[i], length + 1);
-    void* address = (void*) (0x841000 + (i << 12));
+    void* address = (void*) (0x811000 + (i << 12));
     mount_page(pdt, address, page, true, true, true);
     argv_page[i] = address;
   }
 
-  mount_page(pdt, (void*) 0x8400000, argv_page, true, true, true);
+  mount_page(pdt, (void*) 0x810000, argv_page, true, true, true);
 }
 
 static void init_process(Process* process) {
@@ -51,7 +51,7 @@ static void init_process(Process* process) {
 
   // //todo: somehow make it less hardcoded? maybe function that creates VA should fill in cs:eip & ss:esp ?
   process->ctx = (Context){
-      .edi        = (size_t) 0x8400000,
+      .edi        = (size_t) 0x810000,
       .esi        = (size_t) process->argc,
       .ebp        = 0,
       .pseudo_esp = 0,

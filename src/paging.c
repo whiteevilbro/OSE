@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #define PTEs_BASE 0xD0000000
 #define PDT 0xD0400000
@@ -32,6 +33,9 @@ bool is_mounted(PageDirectoryEntry* pdt, void* virtual) {
           ((PageTableEntry*) ((size_t) pdt[(size_t) virtual >> 22].directory.address << 12))[((size_t) virtual >> 12) & 0x3ff].mapped.present);
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+
 void mount_page(PageDirectoryEntry* pdt, void* virtual, void* physical, bool writable, bool user, bool freeable) {
   if (!pdt[(size_t) virtual >> 22].unmapped.present) {
     pdt[(size_t) virtual >> 22] = (PageDirectoryEntry){
@@ -51,10 +55,12 @@ void mount_page(PageDirectoryEntry* pdt, void* virtual, void* physical, bool wri
             .writable           = writable,
             .user               = user,
             .available_freeable = freeable,
-            .address            = (size_t) physical >> 12,
+            .address            = (uint32_t) physical >> 12,
         }};
   }
 }
+
+#pragma GCC diagnostic pop
 
 PageDirectoryEntry* create_VAS(void) {
   PageDirectoryEntry* pdt = calloc_page();

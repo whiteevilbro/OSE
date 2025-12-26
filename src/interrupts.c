@@ -121,15 +121,13 @@ static void write_descriptor(GateDescriptor* const desc,
       }};
 }
 
-static void ret(const Context* const cxt) {}
-
 void init_interrupts(void) {
   generate_idt();
   handlerTable = calloc_immortal(sizeof(InterruptHandler) * VECTOR_COUNT, 8);
   init_exceptions();
 
   set_interrupt_handler(PF, INTERRUPT_GATE, KERNEL_PL, pagefault_handler);
-  set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, KERNEL_PL, ret);
+  set_interrupt_handler(SYSTEM_TIMER_VECTOR, INTERRUPT_GATE, KERNEL_PL, (InterruptHandler) ret);
 }
 
 static void generate_idt(void) {

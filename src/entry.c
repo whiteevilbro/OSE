@@ -19,12 +19,6 @@
 
 const char* params[] = {"Hello, world!", "In userspace", "Passed as argv argument", "Not in 14 bytes though :("};
 
-static void v(void) {
-  static bool f = false;
-  f             = !f;
-  printf("tick%d\r", f);
-}
-
 void kernel_entry(const void* memsize) {
   init_acpi((void*) (((size_t) memsize) << 10));
   init_immortal_allocator();

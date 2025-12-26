@@ -3,7 +3,7 @@ SECTIONS {
     .start = .;
 
     .boot : {
-        BUILD_DIR/boot.o (.text);
+        ./DIR/boot.o (.text);
     }
 
     .kernel : {

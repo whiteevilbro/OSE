@@ -25,11 +25,14 @@ STD_ASM_SOURCES = $(shell find -L ./std/* -iname "*.asm")
 STD_C_SOURCES = $(shell find -L ./std/* -iname "*.c")
 STD_HEADERS = $(shell find -L ./std/* -iname "*.h")
 
+USER_C_SOURCES = $(shell find -L ./ -iname "*.c" -not -path "./std/*")
+USER_ASM_SOURCES = $(shell find -L ./ -iname "*.asm" -not -path "./std/*")
+
+# Objects
+
 STD_ASM_OBJECTS = $(patsubst %.asm, %.o, $(STD_ASM_SOURCES))
 STD_C_OBJECTS = $(patsubst %.c, %.o, $(STD_C_SOURCES))
 
-USER_C_SOURCES = $(shell find -L ./ -iname "*.c" -not -path "./std/*")
-USER_ASM_SOURCES = $(shell find -L ./ -iname "*.asm" -not -path "./std/*")
 USER_C_OBJECTS = $(patsubst %.c, %.o, $(USER_C_SOURCES))
 USER_ASM_OBJECTS = $(patsubst %.asm, %.o, $(USER_ASM_SOURCES))
 
@@ -45,39 +48,37 @@ GCC_FLAGS += $(addprefix -I, $(call uniq,$(dir $(C_HEADERS))))
 all: $(BIN)
 
 clean:
-	find . -name "*.o" -type f -delete
-	find . -name "*.elf" -type f -delete
-	find . -name "*.strp" -type f -delete
-	find . -name "*.bin" -type f -delete
+	@find . -name "*.o" -type f -delete
+	@find . -name "*.elf" -type f -delete
+	@find . -name "*.strp" -type f -delete
+	@find . -name "*.bin" -type f -delete
 
 echo:
 	@echo $(STD_ASM_OBJECTS)
 	@echo $(STD_C_OBJECTS)
 
-$(USER_C_OBJECTS) : %.o : %.c
-	$(GCC) $(GCC_FLAGS) -c $*.c -o $@
+$(USER_C_OBJECTS) $(STD_C_OBJECTS): %.o : %.c
+	@echo -e "\t\t\e[1mCompiling\e[0m" $(notdir $*.c)
+	@$(GCC) $(GCC_FLAGS) -c $*.c -o $@
 
-$(USER_ASM_OBJECTS): %.o : %.asm
-	$(NASM) $(NASM_FLAGS) $*.asm -o $@
-
-$(STD_C_OBJECTS) : %.o : %.c
-	$(GCC) $(GCC_FLAGS) -c $*.c -o $@
-
-$(STD_ASM_OBJECTS): %.o : %.asm
-	$(NASM) $(NASM_FLAGS) $*.asm -o $@
+$(USER_ASM_OBJECTS) $(STD_ASM_OBJECTS): %.o : %.asm
+	@echo -e "\t\t\e[1mAssembling\e[0m" $(notdir $*.asm)
+	@$(NASM) $(NASM_FLAGS) $*.asm -o $@
 
 $(ELFS): %.elf : %.o $(STD_C_OBJECTS) $(STD_ASM_OBJECTS)
-	$(LD) $(LD_FLAGS) -T $(LINKER_SCRIPT) $^ -o $@
+	@echo -e "\t\t\e[1mLinking\e[0m"  $(notdir $*.elf)
+	@$(LD) $(LD_FLAGS) -T $(LINKER_SCRIPT) $^ -o $@
 
 $(STRIPS): %.strp : %.elf
-	objcopy -I elf32-i386 -O binary $*.elf $@
+	@objcopy -I elf32-i386 -O binary $*.elf $@
 
 $(BINS) : %.bin : %.strp
-	dd if=/dev/zero of=$@ bs=512 count=128 conv=notrunc
-	dd if=$*.strp of=$@ bs=512 count=128 conv=notrunc
+	@dd if=/dev/zero of=$@ bs=512 count=128 conv=notrunc 2>$(NULL)
+	@dd if=$*.strp of=$@ bs=512 count=128 conv=notrunc 2>$(NULL)
 
 $(BIN) : $(BINS)
-	cat $^ > $@
+	@echo -e "\t\t\e[1mMaking\e[0m" $(notdir $@)
+	@cat $^ > $@
 
 
 .PHONY: all
